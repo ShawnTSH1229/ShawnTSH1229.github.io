@@ -179,4 +179,40 @@ float3 L = InScatteredLuminance * SumOfAllMultiScatteringEventsContribution;
 
 # Sky-View LUT
 
+With the precomputed transmittance LUT and the multi-scattering result, it's enough to ray marhcing the sky atmosphere with a low number of samples: 
+{% katex %}L = L_{1} + G_{all}{% endkatex %}<br><br>
+
+## Multi-Scattering
+## Single-Scattering
+## Phase Function
+
+
+UE's implementation renders the distant sky into a latitude/longtitude sky-view LUT texture in a low resolution and upscales the texture on the lighting pass.In order to better represent the high-frequency visual features toward the horizon, unreal engine applies a non-linear transformation to the latitude l when computing the texture coordinate v in [0,1] that will compress more texels near the horizon:
+{% katex %}v = 0.5 + 0.5 * sign(l) * \sqrt{\frac{|l|}{\pi/2}}{% endkatex %}<br>
+```cpp
+ float Vhorizon = sqrt(ViewHeight * ViewHeight - BottomRadius * BottomRadius);
+ float CosBeta = Vhorizon / ViewHeight;
+ float Beta = acosFast4(CosBeta);
+ float ZenithHorizonAngle = PI - Beta;
+ float ViewZenithAngle = acosFast4(ViewZenithCosAngle);
+
+ if (!IntersectGround)
+ {
+     float Coord = ViewZenithAngle / ZenithHorizonAngle;
+     Coord = 1.0f - Coord;
+     Coord = sqrt(Coord);
+     Coord = 1.0f - Coord;
+     UV.y = Coord * 0.5f;
+ }
+ else
+ {
+     float Coord = (ViewZenithAngle - ZenithHorizonAngle) / Beta;
+     Coord = sqrt(Coord);
+     UV.y = Coord * 0.5f + 0.5f;
+ }
+```
+
+
+# Combine Light
+
 [<u>**source code can be found here.**</u>](https://github.com/ShawnTSH1229/XEngine)
