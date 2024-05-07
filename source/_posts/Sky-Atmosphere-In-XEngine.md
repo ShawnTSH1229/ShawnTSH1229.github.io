@@ -2,6 +2,7 @@
 title: Sky Atmosphere In XEngine
 date: 2024-05-05 15:47:47
 tags:
+index_img: /resource/skyatmosphere/image/ray_dir.png
 ---
 >**Note** that this [<u>**Project**</u>](https://github.com/lvcheng1229/XEnigine/blob/main/Source/Shaders/SkyAtmosphere.hlsl)  was written during my undergraduate studies. I am just organizing this project and publishing the blog for it at this time.
 
@@ -180,15 +181,39 @@ float3 L = InScatteredLuminance * SumOfAllMultiScatteringEventsContribution;
 # Sky-View LUT
 
 With the precomputed transmittance LUT and the multi-scattering result, it's enough to ray marhcing the sky atmosphere with a low number of samples: 
-{% katex %}L = L_{1} + G_{all}{% endkatex %}<br><br>
+{% katex %}L = \int_{0}^{b}(L_{1} + \sigma_{s}G_{all})\mathrm{d}t{% endkatex %}<br><br>
 
-## Multi-Scattering
-## Single-Scattering
-## Phase Function
+We can get the multi-scattering term {% katex %}G_{all}{% endkatex %} by looking up the LUT precomputed before.
+```cpp
+float3 MultiScatteredLuminance0 = MultiScatteredLuminanceLutTexture.SampleLevel(gsamLinearClamp, MultiSactterUV, 0).rgb;
+```
+The remaining single scattering term is the integration along the view direction:
+{% katex %}L = \int_{0}^{b}(Vis(p,v)T(p,v)(\sigma_{s\_mie}\phi_{mie}+ \sigma_{s\_ray}\phi_{ray})+\sigma_{s}G_{all})\mathrm{d}t{% endkatex %}, where Vis is the shadow term in this position and the transmittance term is obtained from transmittance lut.
 
+```cpp
+float3 TransmittanceToLight0 = TransmittanceLutTexture.SampleLevel(gsamLinearClamp, UV, 0).rgb;
+float3 PhaseTimesScattering0 = Medium.ScatteringMie * MiePhaseValueLight0 + Medium.ScatteringRay * RayleighPhaseValueLight0;
 
+float tPlanet0 = RaySphereIntersectNearest(P, Light0Dir, PlanetO + PLANET_RADIUS_OFFSET * UpVector, Atmosphere_BottomRadiusKm);
+float PlanetShadow0 = tPlanet0 >= 0.0f ? 0.0f : 1.0f;
+float3 S = Light0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0 + MultiScatteredLuminance0 * Medium.Scattering);
+```
+
+Another important term is the phase function term, which indicates the relative ratio of light lost in a particular direction after a scattering event. Here is the rayleigh phase function. The {% katex %}\frac{3}{16\pi}{% endkatex %} coefficient serves as a normalisation factor, so that the integral over a unit sphere is 1:
+{% katex %}\phi_{ray}(\theta)=\frac{3}{16\pi}(1+cos^{2}(\theta)){% endkatex %}<br><br>
+We use the simpler Henyey-Greenstein phase function for mie scattering:
+```cpp
+float HgPhase(float G, float CosTheta)
+{
+    float Numer = 1.0f - G * G;
+    float Denom = 1.0f + G * G + 2.0f * G * CosTheta;
+    return Numer / (4.0f * PI * Denom * sqrt(Denom));
+}
+```
+## Latitude/Longtitude Texture
 UE's implementation renders the distant sky into a latitude/longtitude sky-view LUT texture in a low resolution and upscales the texture on the lighting pass.In order to better represent the high-frequency visual features toward the horizon, unreal engine applies a non-linear transformation to the latitude l when computing the texture coordinate v in [0,1] that will compress more texels near the horizon:
 {% katex %}v = 0.5 + 0.5 * sign(l) * \sqrt{\frac{|l|}{\pi/2}}{% endkatex %}<br>
+
 ```cpp
  float Vhorizon = sqrt(ViewHeight * ViewHeight - BottomRadius * BottomRadius);
  float CosBeta = Vhorizon / ViewHeight;
@@ -211,8 +236,13 @@ UE's implementation renders the distant sky into a latitude/longtitude sky-view 
      UV.y = Coord * 0.5f + 0.5f;
  }
 ```
-
-
 # Combine Light
 
-[<u>**source code can be found here.**</u>](https://github.com/ShawnTSH1229/XEngine)
+Sky-View LUT doesn't calculate sun disk luminance, since it is high-frequency lighting, which should be computed at full resolution in the lighting pass based on the view direction and the light direction. The rest low-frequency part can be obtained by looking up the sky-view LUT directly. Below is the result of our implementation in XEngine.
+
+<p align="center">
+    <img src="/resource/skyatmosphere/image/result.png" width="80%" height="80%">
+</p>
+
+
+[<u>**sky atmosphere source code**</u>](https://github.com/ShawnTSH1229/XEngine)
