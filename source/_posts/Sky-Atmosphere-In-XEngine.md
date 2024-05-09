@@ -4,7 +4,7 @@ date: 2024-05-05 15:47:47
 tags:
 index_img: /resource/skyatmosphere/image/ray_dir.png
 ---
->**Note** that this [<u>**Project**</u>](https://github.com/lvcheng1229/XEnigine/blob/main/Source/Shaders/SkyAtmosphere.hlsl)  was written during my undergraduate studies. I am just organizing this project and publishing the blog for it at this time.
+>**Note** that this [<u>**Project**</u>](https://github.com/lvcheng1229/XEnigine/blob/main/Source/Shaders/SkyAtmosphere.hlsl)  was written during my undergraduate studies. Some points may be incorrect.
 
 # Brief Introduction to UE's Implementation
 This project is based on the implementation of the **unreal engine**. I assume that you have a basic knowledge of volume rendering and will **not go into detail** about it. If you are interested, you can read my blog about [<u>**Volume Rendering In Offline Rendering**</u>](https://shawntsh1229.github.io/2024/05/05/Volume-Rendering-In-Offline-Rendering/).
