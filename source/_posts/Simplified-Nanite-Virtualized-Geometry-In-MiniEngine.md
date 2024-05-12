@@ -169,7 +169,37 @@ public:
 };
 ```
 
-# Cluster Culling
+# Culling
+## Instance Culling
+
+This step performs instance-level GPU-Culling, which is easy to implement and not necessary to detail it. The input of this step is the scene instance data and the output is the instance culled by the camera.
+
+scene instance data:
+<p align="center">
+    <img src="/resource/simnanite/image/ins_cull_scene.png" width="50%" height="50%">
+</p>
+
+instances viewed by camera:
+<p align="center">
+    <img src="/resource/simnanite/image/ins_cull_view.png" width="50%" height="50%">
+</p>
+
+instances culled by camera:
+<p align="center">
+    <img src="/resource/simnanite/image/ins_cull_scene_view.png" width="50%" height="50%">
+</p>
+
+## Persistent Culling
+
+Unreal's Nanite build a BVH structure offline to accelerate the run-time cluster group culling. SimNanite removes the BVH culling and iterates the DAG cluster group naively.
+
+Build Scene Vertex Buffer
+
+Global Cluster Index Offset
+
+Init Persistent Culling
+1.group thread index 0, allocate the block
+
 
 
 
