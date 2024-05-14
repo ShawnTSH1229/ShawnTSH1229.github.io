@@ -9,7 +9,7 @@ categories:
 todo
 # Nanite Builder
 ## Overview
-SimNanite (Simplified Nanite) building is an offline mesh processing during mesh import. It splits the mesh into clusters to provide a fine-grained mesh culling with a graph partition algorithm. Beyond the cluster level, SimNanite partitions the cluster into groups to accelerate mesh culling. In addtion, SimNanite simplifies the merged clusters at the current level rather than separate clusters in order to avoid the Lod crack artifact without boundnary edge locking.
+SimNanite (Simplified Nanite) building is an offline mesh processing during mesh import. It splits the mesh into **clusters** to provide a fine-grained mesh culling with a graph partition algorithm. Beyond the cluster level, SimNanite partitions the cluster into **groups** to accelerate mesh culling. Cluster groups are the leaf nodes of the **BVH structure**. In addtion, SimNanite **simplifies the merged clusters** at the current level rather than separate clusters in order to avoid the Lod crack artifact without boundnary edge locking.
 <p align="center">
     <img src="/resource/simnanite/image/nanite_builder_overview.png" width="60%" height="60%">
 </p>
@@ -75,7 +75,7 @@ else if (triangle_part_num == 3)
 
 ## Cluster Partition
 
-With clusters and linked clusters, we can partition them into cluster groups as we do in the triangle partition pass. In addition, we record the cluster group index for each vertex in order to link cluster groups between mesh LODs after mesh simplification. This is also the reason why we use the QEM mesh simplification approach rather than the voxel-based solution. It is difficult to map clusters between mesh LODs using the latter method.
+With clusters and linked clusters, we can partition them into cluster groups as we do in the triangle partition pass. Cluster group is the leaf node in BVH acceleration structure. Usually, it consists of four to eight clusters.
 
 <p align="center">
     <img src="/resource/simnanite/image/vtx_clu_grp_map.png" width="50%" height="50%">
@@ -97,7 +97,7 @@ Below is the cluster visualization at LOD level 0, 1 and 2 in SimNanite:
 
 ## Mesh Simplification
 
-We simplify the mesh until the cluster number is less than 24 or fails to simplify the mesh. The mesh simplification library is Meshoptimizer. It employs the QEM method to simplify the mesh, which is similar to what the Unreal Engine does. Another important point is that we simplify the global mesh rather than the cluster, as the latter method causes the LOD crack whitout boundnary edge locking. 
+We simplify the mesh until the cluster number is less than 24 or fails to simplify the mesh. The mesh simplification library is Meshoptimizer. It employs the QEM method to simplify the mesh, which is similar to what the Unreal Engine does. Another important point is that we simplify the global mesh rather than the cluster, as the latter method causes the **LOD crack** whitout boundnary edge locking. 
 
 <p align="center">
     <img src="/resource/simnanite/image/mesh_simplify.png" width="50%" height="50%">
@@ -105,7 +105,7 @@ We simplify the mesh until the cluster number is less than 24 or fails to simpli
 
 ## Build DAG
 
-In the DAG (Directed Acyclic Graph) building pass, we organize the data and translate it into a GPU-friendly structure to acclerate to GPU-culling performed later. Each parent cluster group may link with one or more child cluster groups. Similarly, each child cluster group may be connected to one or more parent cluster groups.
+In the DAG (Directed Acyclic Graph) building pass, we organize the data and translate it into a GPU-friendly structure to acclerate to GPU-culling performed later. 
 
 <p align="center">
     <img src="/resource/simnanite/image/adg_structure.png" width="70%" height="70%">
@@ -117,7 +117,7 @@ SimNanite merges the resources of all lod level into a global resource array. Th
     <img src="/resource/simnanite/image/dag_data.png" width="50%" height="50%">
 </p>
 
-A nanite mesh resource contains several lod resources. Each LOD resource stores cluster group indices in the current level. The max cluster group number per LOD is 8. Cluster group structure contains two parts: child cluster group indices linked in the DAG structure and child cluster indices. Cluster is the minimum culling unit. It stores the vertex and index location in the mesh vertex buffer. Nanite mesh building consume a lot of time. To accelerate programming efficiency, we serialize the DAG structure on the disk and load it without building at the next launch.
+A nanite mesh resource contains several lod resources. Each LOD resource stores cluster group indices in the current level. The max cluster group number per LOD is 8.  It stores the vertex and index location in the mesh vertex buffer. Nanite mesh building consume a lot of time. To accelerate programming efficiency, we serialize the DAG structure on the disk and load it without building at the next launch.
 
 ```cpp
 struct CSimNaniteClusterResource
@@ -168,6 +168,38 @@ public:
 	void LoadFrom(const std::string& source_file_an, const std::wstring& source_file, bool bforce_rebuild = false);
 };
 ```
+## Build BVH
+
+UE's nanite use BVH to acclerate the GPU cluster group culling and LOD selection. In the offline, UE builds the BVH by SAH (Surface Area Heuristic) method. In SimNanite, we find the maximum dimension of the bound box extents and sort the cluster goups based on the position distribution in the maximum dimension. After that, we split the cluster groups into 4 nodes and build the whole BVH tree bottom-up. Each LOD has a root BVH node. For example, the mesh that has four LOD contains four root nodes.
+
+```cpp
+std::vector<SClusterGroupBVHNode> leaf_nodes;
+for (uint32_t clu_grp_idx = 0; clu_grp_idx < lod_resource.m_cluster_group_num; clu_grp_idx++)
+{
+	uint32_t global_clu_grp_idx = lod_resource.m_cluster_group_start + clu_grp_idx;
+	SClusterGroupBVHNode leaf_node;
+	leaf_node.m_is_leaf_node = true;
+	leaf_node.m_cluster_group_index = global_clu_grp_idx;
+	leaf_node.m_bouding_box = out_nanite_reousource.m_cluster_groups[global_clu_grp_idx].m_bouding_box;
+	leaf_nodes.push_back(leaf_node);
+}
+
+uint32_t max_dimension_index = (bbox.Extents.x > bbox.Extents.y) ? 0 : 1;
+float max_dimension = (bbox.Extents.x > bbox.Extents.y) ? bbox.Extents.x : bbox.Extents.y;
+max_dimension_index = (max_dimension > bbox.Extents.z) ? max_dimension_index : 2;
+max_dimension = (max_dimension > bbox.Extents.z) ? max_dimension : bbox.Extents.z;
+SCustomLess custom_less;
+custom_less.m_split_dimension = max_dimension_index;
+
+std::sort(leaf_nodes.begin(), leaf_nodes.end(), custom_less);
+
+uint32_t offset = bvh_nodes.size();
+uint32_t level_node_num = leaf_nodes.size();
+for (uint32_t leaf_idx = 0; leaf_idx < leaf_nodes.size(); leaf_idx++)
+{
+	bvh_nodes.push_back(leaf_nodes[leaf_idx]);
+}
+```
 
 # Culling
 ## Instance Culling
@@ -190,15 +222,19 @@ instances culled by camera:
 </p>
 
 ## Persistent Culling
+I tried to implement a DAG transversal at first. But I found it was too complicated to traverse to DAG in the compute shader. So I finally use the BVH structure to traverse the cluster group on GPU, which is same as the unreal does.
 
-Unreal's Nanite build a BVH structure offline to accelerate the run-time cluster group culling. SimNanite removes the BVH culling and iterates the DAG cluster group naively.
+UE's Nanite use the MPMC ( Multiple Producers, Single Consumer ) model to transverse the BVH structure. What's more, it integrates the cluster culling into BVH culling shader for latency hide. **In SimNanite, we have implemented the two features (MPMC and integrate cluster culling) mentioned above.**
+
+
 
 Build Scene Vertex Buffer
 
 Global Cluster Index Offset
 
-Init Persistent Culling
-1.group thread index 0, allocate the block
+
+
+# Cluster Culling
 
 
 
