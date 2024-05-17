@@ -556,6 +556,7 @@ Bellow is the SimNanite final result:
     <img src="/resource/simnanite/image/final1.png" width="50%" height="50%">
 </p>
 
+[<u>**simplified nanite code**</u>](https://github.com/ShawnTSH1229/SimNanite)
 
 
 
