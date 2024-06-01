@@ -289,7 +289,7 @@ float3 point_lighting = float3(0,0,0);
 surface_cache_direct_lighting[int2(pixel_pos.xy)] = float4(point_lighting + directional_lighting, 1.0);
 ```
 
-Surface Cache Direct Lighting Visualization:
+surface cache direct lighting visualization:
 <p align="center">
     <img src="/resource/simlumen/image/scache_direct_lighting.png" width="64%" height="64%">
 </p>
@@ -333,13 +333,40 @@ We can obtain the intersection mesh and intersection position directly from the 
     }
 ```
 
-Voxel lighting visualization:
+voxel lighting visualization:
 
 <p align="center">
     <img src="/resource/simlumen/image/voxel_lighting_visualize.png" width="60%" height="60%">
 </p>
 
 ## Surface Cache Indirect Lighting
+
+The first step is to calculate the radiance of the current surface cache pixel using global SDF, filter, and store the radiance in a radiance atlas. We then convert radiance into SH, which allows us to perform probe interpolation to reduce lighting noise.
+The irradiance in a unit area is the integral of the f(x) over the half sphere:
+{% katex %}E(p) = \int_{\Omega}L(p,i)max(0,n\cdot i )\mathrm{d}i{% endkatex %}<br>
+F(x) can be split into two parts: the lighting function and the diffuse transfer function:
+{% katex %}E(p) = \int_{\Omega}L(i)\cdot H(i)\mathrm{d}i{% endkatex %}<br>
+L(i) is reconstructed from the spherical harmonic by SH factors and biasis function:
+{% katex %}L(i) \approx \Sigma l_{k}B_{k}(i) {% endkatex %}<br>
+We project the radiance into the basis function to get the SH factors in Convert SH pass:
+{% katex %}l_{k} = \int_{\Omega}L(i)B(i)\mathrm{d}i{% endkatex %}<br>
+```cpp
+irradiance_sh = AddSH(irradiance_sh, MulSH(SHBasisFunction(world_ray), trace_irradiance / pdf));
+```
+
+If we project both the illumination and transfer functions into SH coefficients then orthogonality guarantees that the integral of the function's products is the same as the dot product of their coefficients:
+{% katex %}E(p) = \Sigma_{k=0}^{n^{2}} l_{k}h_{k}{% endkatex %}<br>
+{% katex %}H(i) = max(0,n\cdot l) {% endkatex %}<br>
+The irradiance of a pixel is calculated in the integrate pass:
+```cpp
+FTwoBandSHVector diffuse_transfer_sh = CalcDiffuseTransferSH(card_data.world_normal, 1.0f);
+float3 texel_irradiance = max(float3(0.0f, 0.0f, 0.0f), DotSH(irradiance_sh, diffuse_transfer_sh));
+```
+
+
+<p align="center">
+    <img src="/resource/simlumen/image/scache_indirect_lighting.png" width="40%" height="40%">
+</p>
 
 ### Radiosity Trace
 
@@ -391,24 +418,78 @@ Finally, fetch the voxel lighting at the hit position and accumulate the weighte
             radiance /= (weight_x + weight_y + weight_z);
 ```
 
-Radiance trace result:
+radiance trace result:
 <p align="center">
     <img src="/resource/simlumen/image/scache_radiosity_atlas.png" width="60%" height="60%">
 </p>
 
-Radiance trace visualization:
+radiance trace visualization:
 <p align="center">
     <img src="/resource/simlumen/image/scache_radiosity_vis.png" width="60%" height="60%">
 </p>
 
 ### Radiosity Filter
-使用当前 Radiosity Texel 的 World Normal 和 Neighbor 的 World Position 构建 Plane。
-计算当前 Radiosity Texel 到这个平面的距离。
-计算相对距离，使用第 2 步的距离除以两个点的距离，最小不小于 0.1。
-根据相对距离计算 Depth Weight，这里通过 ProbePlaneWeightingDepthScale 系数调节，默认 -100。
-根据 Depth Weight 返回权重，这里只有两种权重：0 和 1，这意味着 Neighbor 的 Radiance 没有中间过渡状态，只有是否影响当前 Radiosity Texel 两种状态，这可以有效防止 Light Leaking 的问题。
+In this pass, SimLumen filters the radiance atlas to reduce the noise. We sample the radiance around the current texel and accumulate weighted samples. Radiance sample weights in Unreal Lumen are dependent upon a number of factors, including the texel's World space plane and the distance between the planes.
+
+filtered radiance atlas:
+
+<p align="center">
+    <img src="/resource/simlumen/image/scache_radiosity_atlas_filtered.png" width="60%" height="60%">
+</p>
 
 ### Convert To SH
+Radiance atlas results are still noisy after filtering, since we only have 16 samples per probe. We solve this problem by converting the tile radiance into two bands SH, which allows us to interpolate the probes more easily. 
+```cpp
+for(uint trace_idx_x = 0; trace_idx_x < SURFACE_CACHE_PROBE_TEXELS_SIZE; trace_idx_x++)
+{
+    for(uint trace_idx_y = 0; trace_idx_y < SURFACE_CACHE_PROBE_TEXELS_SIZE; trace_idx_y++)
+    {
+        ......
+        float3 trace_irradiance = trace_radiance_atlas.Load(int3(pixel_atlas_pos.xy, 0)).xyz;
+        irradiance_sh = AddSH(irradiance_sh, MulSH(SHBasisFunction(world_ray), trace_irradiance / pdf));
+		num_valid_sample += 1.0f;
+    }
+}
+
+if (num_valid_sample > 0)
+{
+	irradiance_sh = MulSH(irradiance_sh, 1.0f / num_valid_sample);
+}
+```
 ### Radiosity Integrate
+
+Finally, sample the probes around the current pixel and calculate the weights based on the atlas position. Then, accumulate the SH weights and weighted SH, calculate the basis function using the current pixel's world normal, and dot product the basis function with the SH result.  By dividing it by the total sum of SH weights, we get the final radiance value for the current pixel.
+
+```cpp
+        FTwoBandSHVectorRGB irradiance_sh = (FTwoBandSHVectorRGB)0;
+
+        FTwoBandSHVectorRGB sub_irradiance_sh00 = GetRadiosityProbeSH(ProbeCoord00);
+        FTwoBandSHVectorRGB sub_irradiance_sh01 = GetRadiosityProbeSH(ProbeCoord01);
+        FTwoBandSHVectorRGB sub_irradiance_sh10 = GetRadiosityProbeSH(ProbeCoord10);
+        FTwoBandSHVectorRGB sub_irradiance_sh11 = GetRadiosityProbeSH(ProbeCoord11);
+
+        irradiance_sh = AddSH(irradiance_sh, MulSH(sub_irradiance_sh00, weights.x));
+        irradiance_sh = AddSH(irradiance_sh, MulSH(sub_irradiance_sh01, weights.y));
+        irradiance_sh = AddSH(irradiance_sh, MulSH(sub_irradiance_sh10, weights.z));
+        irradiance_sh = AddSH(irradiance_sh, MulSH(sub_irradiance_sh11, weights.w));
+
+        uint card_index_1d = card_idx_2d.y * SURFACE_CACHE_CARD_NUM_XY + card_idx_2d.x;
+        SCardInfo card_info = scene_card_infos[card_index_1d];
+        SCardData card_data = GetSurfaceCardData(card_info, float2(uint2(thread_index.xy % 128u)) / 128.0f, pixel_atlas_pos.xy);
+        FTwoBandSHVector diffuse_transfer_sh = CalcDiffuseTransferSH(card_data.world_normal, 1.0f);
+        
+        float3 texel_irradiance = max(float3(0.0f, 0.0f, 0.0f), DotSH(irradiance_sh, diffuse_transfer_sh));
+        irtexel_radiance = texel_irradiance / (weights.x + weights.y + weights.z + weights.w);
+```
+
+indirect lighting visualization:
+<p align="center">
+    <img src="/resource/simlumen/image/indirect_lighting_vis.png" width="60%" height="60%">
+</p>
+
+combined lighting visualization:
+<p align="center">
+    <img src="/resource/simlumen/image/combined_lighting_vis.png" width="60%" height="60%">
+</p>
 
 # Final Gather
