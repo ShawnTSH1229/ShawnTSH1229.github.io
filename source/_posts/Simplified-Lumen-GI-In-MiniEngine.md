@@ -153,7 +153,7 @@ Mesh cars describe the material attributes capture infomation. It can be generat
 
 ## SimLumen Card Generation
 
-In Unreal, a mesh may have many mesh cards based on mesh complexity. SimLumen simplifies mesh card generation: generates a fixed number mesh card (6 direction) based on the mesh bounding box.  
+**In Unreal, a mesh may have many mesh cards based on mesh complexity.** SimLumen simplifies mesh card generation: generates a fixed number mesh card (6 direction) based on the mesh bounding box.  
 
 <p align="center">
     <img src="/resource/simlumen/image/mesh_card.png" width="40%" height="40%">
@@ -493,3 +493,73 @@ combined lighting visualization:
 </p>
 
 # Final Gather
+
+## Screen Space Probe
+
+## Importance Sampling
+
+It's too noisy if we employ uniform sampling rather than importance sampling. 
+without importance sampling V  with importance sampling:
+
+<p align="center">
+    <img src="/resource/simlumen/image/is_vs_no_is.png" width="60%" height="60%">
+</p>
+
+What we do in the importance sampling part is searching the rays that orientates to the lighting source and world normal. That is to say, we peroform importance sampling for BRDF(fs) term and input radiance(Li) term:
+{% katex %}\frac{1}{N}\Sigma_{k=1}^{N}\frac{L_{i}(l)f_{s}(l->v)cos(\theta l)}{P_{k}}{% endkatex %}<br>
+
+### BRDF PDF
+
+In this step, SimLumen generate the three band sphere harmonic factors for the BRDF function. We sample the screen pixels around the screen probe and compute the influence weight on the probe. If the weight is over the threshold, convert the BRDF to SH and accumulate the SH. Then write the result to the BRDF SH buffer.
+
+```cpp
+            float3 pixel_world_position = GetWorldPosByDepth(thread_depth, piexl_tex_uv);
+            float3 probe_world_position = GetWorldPosByDepth(probe_depth, ss_probe_atlas_pos / global_thread_size);
+
+            float4 pixel_world_plane = float4(thread_world_normal, dot(thread_world_normal,pixel_world_position));
+            float plane_distance = abs(dot(float4(probe_world_position, -1), pixel_world_plane));
+
+            float probe_view_dist = length(probe_world_position - CameraPos);
+            float relative_depth_diff = plane_distance / probe_view_dist;
+            float depth_weight = exp2(-10000.0f * (relative_depth_diff * relative_depth_diff));
+            if(depth_weight > 0.1f)
+            {
+                uint write_index;
+                InterlockedAdd(group_num_sh, 1, write_index);
+
+                FThreeBandSHVector brdf = CalcDiffuseTransferSH3(thread_world_normal, 1.0);
+                WriteGroupSharedSH(brdf, write_index);
+            }
+```
+
+The pixel normal may be located in a different plane from the probe. Therefore, we compute the plane weight for the given pixel and reject the pixel if the depth weight is over the threshold. Then, store the results of those valid pixels in a **group shared** array.
+
+<p align="center">
+    <img src="/resource/simlumen/image/brdf_depth_weight.png" width="60%" height="60%">
+</p>
+
+After that, perform a parallel reduction to accumulate these SH factors.
+
+<p align="center">
+    <img src="/resource/simlumen/image/acc_brdf_pdf.png" width="60%" height="60%">
+</p>
+
+Finally, the first nine threads store the 9 SH factors in output BRDF SH buffer.
+```cpp
+        if (thread_index < 9 && group_num_sh > 0)
+        {
+            uint write_index = (ss_probe_idx_xy.y * screen_probe_size_x + ss_probe_idx_xy.x) * 9 + thread_index;
+            float normalize_weight = 1.0f / (float)(group_num_sh);
+            brdf_pdf_sh[write_index] = pdf_sh[offset][thread_index] * normalize_weight;
+        }
+```
+
+brdf pdf visualization:
+<p align="center">
+    <img src="/resource/simlumen/image/brdf_pdf_vis.png" width="60%" height="60%">
+</p>
+
+### Lighting PDF
+
+### Structured Importance Sampling
+
