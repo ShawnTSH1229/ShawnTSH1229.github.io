@@ -499,7 +499,7 @@ combined lighting visualization:
 ## Importance Sampling
 
 It's too noisy if we employ uniform sampling rather than importance sampling. 
-without importance sampling V  with importance sampling:
+without importance sampling Vs with importance sampling:
 
 <p align="center">
     <img src="/resource/simlumen/image/is_vs_no_is.png" width="60%" height="60%">
@@ -561,5 +561,131 @@ brdf pdf visualization:
 
 ### Lighting PDF
 
+The light source direction in the current frame is unknown. In order to search the light direction, we assume lighting changes slightly and reuse the previous frame's lighting result.
+
+<p align="center">
+    <img src="/resource/simlumen/image/ss_light_is.png" width="60%" height="60%">
+</p>
+
+Then, reproject the probe into the previous frame screen position and find the corresponding direction texel.
+
+Calculate the lighting pdf based on its luminance.
+
+```cpp
+            const float2 global_thread_size = float2(is_pdf_thread_size_x,is_pdf_thread_size_y);
+            float3 probe_world_position = gbuffer_c.Load(int3(ss_probe_atlas_pos.xy,0)).xyz;
+            
+            float4 pre_view_pos = mul(PreViewProjMatrix,float4(probe_world_position, 1.0));
+            float2 pre_view_screen_pos = (float2(pre_view_pos.xy / pre_view_pos.w) * 0.5 + float2(0.5,0.5));
+            pre_view_screen_pos.y = (1.0 - pre_view_screen_pos.y);
+            pre_view_screen_pos = pre_view_screen_pos * global_thread_size;
+            uint2 pre_probe_pos = uint2(pre_view_screen_pos) / uint2(PROBE_SIZE_2D,PROBE_SIZE_2D);
+            uint2 pre_texel_pos = pre_probe_pos * uint2(PROBE_SIZE_2D,PROBE_SIZE_2D) + group_thread_idx.xy;
+
+            lighting = sspace_composited_radiance.Load(int3(pre_texel_pos.xy,0));
+```
+
+lighting importance sampling pdf visualization:
+<p align="center">
+    <img src="/resource/simlumen/image/lighting_is_pdf_vis.png" width="60%" height="60%">
+</p>
+
 ### Structured Importance Sampling
+
+Unreal Lumen adopted a new mechanism called structured importance sampling to reassign the not important samples to those importance directions.
+
+The first step is to calculate the PDF of probe 8x8 pixels. We can obtain the world ray direction by pixel's uv in the group based on the equi area spherical mapping algorithm. The BRDF PDF in this direction can be calculated by the BRDF PDF SH computed in the last pass.
+
+<p align="center">
+    <img src="/resource/simlumen/image/struct_id_cull.png" width="70%" height="70%">
+</p>
+
+
+```cpp
+// brdf pdf
+FThreeBandSHVector brdf;
+brdf.V0.x = brdf_pdf_sh[sh_base_idx + 0];
+brdf.V0.y = brdf_pdf_sh[sh_base_idx + 1];
+brdf.V0.z = brdf_pdf_sh[sh_base_idx + 2];
+brdf.V0.w = brdf_pdf_sh[sh_base_idx + 3];
+brdf.V1.x = brdf_pdf_sh[sh_base_idx + 4];
+brdf.V1.y = brdf_pdf_sh[sh_base_idx + 5];
+brdf.V1.z = brdf_pdf_sh[sh_base_idx + 6];
+brdf.V1.w = brdf_pdf_sh[sh_base_idx + 7];
+brdf.V2.x = brdf_pdf_sh[sh_base_idx + 8];
+
+float2 probe_uv = (group_thread_idx.xy + float2(0.5f,0.5f)) / PROBE_SIZE_2D;
+float3 world_cone_direction = EquiAreaSphericalMapping(probe_uv);
+
+FThreeBandSHVector direction_sh = SHBasisFunction3(world_cone_direction);
+float pdf = max(DotSH3(brdf, direction_sh), 0);
+
+float light_pdf = light_pdf_tex.Load(int3(dispatch_thread_idx.xy,0));
+bool is_pdf_no_culled_by_brdf = pdf >= MIN_PDF_TRACE;
+
+float light_pdf_scaled = light_pdf * PROBE_SIZE_2D * PROBE_SIZE_2D;
+pdf *= light_pdf_scaled;
+if(is_pdf_no_culled_by_brdf)
+{
+    pdf = max(pdf, MIN_PDF_TRACE);
+}
+```
+
+Perform a GPU sort from low to high to find those ray directions that need refinement.
+
+<p align="center">
+    <img src="/resource/simlumen/image/struct_is_flow.png" width="50%" height="50%">
+</p>
+
+We refine the rays in groups of three. If the maximum PDF among the three rays is less than the minimum PDF threshold, these samples are discarded and refinement is performed. The ray refinement is similar to the mip map. Double the coordinates, compute the local coordinates based on the ray indexes (0,1), (1,1), and (1,0), respectively. Coordinate (0,0) is the position of the corresponding ray to the refine group.
+
+<p align="center">
+    <img src="/resource/simlumen/image/struct_is_0.png" width="65%" height="65%">
+</p>
+
+```cpp
+uint merge_thread_idx = thread_idx % 3;
+uint merge_idx = thread_idx / 3;
+uint ray_idx_to_refine = max((int)PROBE_SIZE_2D * PROBE_SIZE_2D - (int)merge_idx - 1, 0);
+uint ray_idx_to_merge = merge_idx * 3 + 2;
+
+if(ray_idx_to_merge < ray_idx_to_refine)
+{
+    uint2 ray_tex_coord_to_merge;
+	uint ray_level_to_merge;
+	float ray_pdf_to_merge;
+	UnpackRaySortInfo(RaysToRefine[sort_offset + ray_idx_to_merge], ray_tex_coord_to_merge, ray_level_to_merge, ray_pdf_to_merge);
+
+    if(ray_pdf_to_merge < MIN_PDF_TRACE)
+    {
+        uint2 origin_ray_tex_coord;
+        uint original_ray_level;
+        uint original_pdf;
+        UnpackRaySortInfo(RaysToRefine[sort_offset + ray_idx_to_refine], origin_ray_tex_coord, original_ray_level, original_pdf);
+
+        RaysToRefine[sort_offset + thread_idx] = PackRaySortInfo(origin_ray_tex_coord * 2 + uint2((merge_thread_idx + 1) % 2, (merge_thread_idx + 1) / 2), original_ray_level - 1, 0.0f);
+
+		if (merge_idx == 0)
+		{
+			InterlockedAdd(num_rays_to_subdivide, 1);
+		}
+    }
+}
+```
+
+## Screen Space Probe Trace
+
+### Screen Space Probe Mesh SDF Trace
+
+### Screen Space Probe Voxel Trace
+
+## Traced Radiance Composite
+
+## Screen Radiance Filter
+
+## Convert To Oct SH Representaion
+
+## Integrate
+
+
 
