@@ -1,6 +1,7 @@
 ---
 title: Simplified Lumen GI In MiniEngine
 date: 2024-05-18 13:47:44
+index_img: /resource/simlumen/image/oct_result.png
 categories:
 - My Projects
 ---
