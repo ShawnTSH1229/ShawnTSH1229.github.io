@@ -6,6 +6,26 @@ categories:
 ---
 
 # Introduction
+
+This is a simplified Unreal Lumen GI implementation (SimLumen) based on Unreal's Lumen GI. We have implemented most of Unreal Lumen's features.
+
+To perform fast ray tracing, SimLumen builds the mesh SDFs offline using the embree library. We also precompute a global low resolution SDF of the whole scene, which is used in surface cache ray tracing and screen probe voxel ray tracing.
+
+SimLumen builds mesh cards offline in order to capture material attributes (normal, albedo) at run time. Mesh cards store the capture direction as well as the camera capture frustum. Since our meshes in the test example are simple and most are boxes, we generate only 6 cards for each mesh. Each direction corresponds a mesh card. At run time, SimLumen captures the mesh attributes, and copies them into a global surface cache material attributes atlas.
+
+The surface cache describes the lighting of the scene. It contains 5 parts: surface cache material attributes, surface cache direct lighting, surface cache indirect lighting, surface cache combined final lighting and voxelized scene lighting.
+
+With the global surface cache material attributes (normal, albedo and depth), SimLumen computes the direct lighting for each pixel in the surface cache atlas.
+
+What's more, we have implemented infinity bounce lighting similar to Unreal Lumen. At first, we voxelize the scene. Each voxel has 6 directions. For each direction, we perform a mesh SDF trace and store the hit mesh index and hit distance in the voxel visibility buffer. Then, we inject the surface cache final lighting into the voxel if the voxel hit a mesh.
+
+With the voxelized lighting, we can compute the surface cache indirect lighting in the surface cache Atlas space. Firstly, SimLumen places probes every 4x4 pixels in the Atlas space. In the next step, we trace the ray to the voxelized scene via global SDF and sample the radiance within the voxel. In order to denoise the trace result, SimLumen filters the radiance atlas and converts them into spherical harmonics. By integrating the probes around the pixel, we obtained surface cache indirect lighting.
+
+The surface cache final lighting is computed by combining surface direct and indirect lighting.
+
+As we have SDF to trace the scene quickly as well as surface cache that describes the scene lighting, we are able to proform the screen space probe trace.
+
+
 # Fast Ray Tracing
 
 SimLumen uses signed distance fields to trace the ray with the mesh. SDF is a uniform mesh representation. What's more, it is differentiable, which means we can calculate the normal at the ray hit position. SimLumen precomputes the mesh SDF and the scene global SDF. GI nearby camera employs mesh SDF to accelerate ray-mesh intersection. Global SDF is used in distant GI and surface cache indirect lighting calculation.
@@ -482,19 +502,17 @@ Finally, sample the probes around the current pixel and calculate the weights ba
         irtexel_radiance = texel_irradiance / (weights.x + weights.y + weights.z + weights.w);
 ```
 
-indirect lighting visualization:
+surface cache indirect lighting visualization:
 <p align="center">
     <img src="/resource/simlumen/image/indirect_lighting_vis.png" width="60%" height="60%">
 </p>
 
-combined lighting visualization:
+surface cache combined lighting visualization:
 <p align="center">
     <img src="/resource/simlumen/image/combined_lighting_vis.png" width="60%" height="60%">
 </p>
 
 # Final Gather
-
-## Screen Space Probe
 
 ## Importance Sampling
 
@@ -675,17 +693,302 @@ if(ray_idx_to_merge < ray_idx_to_refine)
 
 ## Screen Space Probe Trace
 
+Unreal Lumen is a hybird global illumination solution consisting four GI methods: SSGI, Mesh SDF trace, global SDF trace and cube map. Unreal Lumen performs screen space GI first by sampling the previous scene color. When the SSGI fails to hit, Unreal Lumen performs a mesh SDF trace and samples the surface cache final lighting atlas. Mesh SDF trace is only performed on probes near the camera (positions in 40m radius around the camera). For those further probes, Unreal Lumen performs Global SDF trace and samples the scene voxel lighting. If all of these methods fail, Unreal Lumen falls back to sample the cube map.
+
+In SimLumen, we only perform **two trace methods**: sampling the **surface cache final lighting** by mesh SDF trace and sampling the **scene voxel lighting** by global SDF trace. 
+
+<p align="center">
+    <img src="/resource/simlumen/image/hybrid_gi.png" width="65%" height="65%">
+</p>
+
 ### Screen Space Probe Mesh SDF Trace
+
+We perform mesh SDF trace if the probe's distance to the camera is less than 100m.
+
+Sample 64 directions for each screen space probe. The sample direction is obtained from structured importance sampling table. This table stores the ray coordinates. The refined ray's coordinates (mip 0) range from (0,0) to (16,16), and the other ray's coordinates (mip 1) range from (0,0) to (8,8). Divide the ray coordinates by the mip size and transform them into range (0,1). We can obtain the mapped direction by EquiAreaSphericalMapping with mapped UV.
+
+```cpp
+void GetScreenProbeTexelRay(uint2 buffer_idx, inout float3 ray_direction)
+{
+    uint packed_ray_info = structed_is_indirect_table.Load(int3(buffer_idx.xy,0));
+
+    uint2 texel_coord;
+    uint level;
+    UnpackRayInfo(packed_ray_info, texel_coord, level);
+
+    uint mip_size = 16 >> level;
+    float inv_mip_size = 1.0f / float(mip_size);
+
+    float2 probe_uv = (texel_coord + float2(0.5, 0.5)) * inv_mip_size;
+    ray_direction = EquiAreaSphericalMapping(probe_uv);
+    ray_direction = normalize(ray_direction);
+}
+```
+
+Then trace the scene mesh SDFs that are around the current probe in the world space.
+
+```cpp
+[loop]
+for(uint mesh_idx = 0; mesh_idx < SCENE_SDF_NUM; mesh_idx++)
+{
+    SMeshSDFInfo mesh_sdf_info = scene_sdf_infos[mesh_idx];
+    float trace_bais = mesh_sdf_info.volume_brick_size * 0.125 * 2.0; //2 voxel
+    RayTraceSingleMeshSDF(probe_world_position + world_normal * trace_bais, ray_direction, 1000, mesh_idx, trace_result);
+}
+```
+
+Calculate the hit world position if the ray hits the scene SDFs. Then, sample the surface cache card based on the world position. Unreal Lumen samples the surface cache cards **three times** based on it's ray directions and the normal in the hit position. Considering our meshes are not too complex, SimLumen only **samples once** based on the **maximum ray direction**.
+
+The surface cache card index is calculated from the mesh card start index and the card direction offset index.
+
+With the mesh card index, we can get the surface cache atlas UV and sample the final lighting.
+
+```cpp
+float3 hit_world_position = float3(0.0,0.0,0.0);
+if(trace_result.is_hit)
+{
+    SMeshSDFInfo mesh_sdf_info = scene_sdf_infos[trace_result.hit_mesh_index];
+
+    float trace_bais = mesh_sdf_info.volume_brick_size * 0.125 * 2.0; //2 voxel
+    hit_world_position = probe_world_position + world_normal * trace_bais + ray_direction * trace_result.hit_distance;
+    
+    float max_ray_dir = 0.0;
+    int max_dir_card_idx = 0;
+    if(abs(ray_direction.x) > max_ray_dir)
+    {
+        if(ray_direction.x > 0){max_dir_card_idx = 5;}
+        else{max_dir_card_idx = 4;};
+    }
+    if(abs(ray_direction.y) > max_ray_dir)
+    {
+        if(ray_direction.y > 0){max_dir_card_idx = 3;}
+        else{max_dir_card_idx = 2;};
+    }
+    if(abs(ray_direction.z) > max_ray_dir)
+    {
+        if(ray_direction.z > 0){max_dir_card_idx = 1;}
+        else{max_dir_card_idx = 0;};
+    }
+
+    uint card_index = mesh_sdf_info.mesh_card_start_index + max_dir_card_idx;
+    
+    SCardInfo card_info = scene_card_infos[card_index];
+    float2 card_uv = GetCardUVFromWorldPos(card_info, hit_world_position);
+    
+    uint2 card_index_xy = uint2((card_index % card_num_xy), (card_index / card_num_xy));
+    uint2 pixel_pos = card_index_xy * 128 + float2(card_uv * 128);
+    pixel_pos.y = SURFACE_CACHE_TEX_SIZE - pixel_pos.y;
+    
+    float3 lighting = surface_cache_final_lighting.Load(int3(pixel_pos,0)).xyz;
+    trace_radiance = lighting;
+}
+else
+{
+    trace_radiance = float3(0.1,0.1,0.1); //hack sky light
+}
+```
+
+surface cache sample result:
+
+<p align="center">
+    <img src="/resource/simlumen/image/mesh_sdf_trace_result.png" width="85%" height="85%">
+</p>
 
 ### Screen Space Probe Voxel Trace
 
+The probes further than 100m using voxel lighting trace, which is similar to surface cache sampling. There are several differences between them: the probes trace the scene using a low resolution global SDF rather than single mesh SDFs, and they sample voxel lighting rather than surface cache lighting.
+
+```cpp
+SGloablSDFHitResult hit_result = (SGloablSDFHitResult)0;
+TraceGlobalSDF(probe_world_position + world_normal * gloabl_sdf_voxel_size * 2.0, ray_direction, hit_result);
+```
+
+Voxel lighting is sampled three times based on the ray trace direction. The sample weights are computed by the dot product result between the ray trace direction and voxel face direction.
+
+```cpp
+int x_dir = 0;
+if(ray_direction.x > 0.0) { x_dir = 5;  }
+else { x_dir = 4;  }
+
+int y_dir = 0;
+if(ray_direction.y > 0.0) { y_dir = 3;  }
+else { y_dir = 2;  }
+
+int z_dir = 0;
+if(ray_direction.z > 0.0) { z_dir = 1;  }
+else { z_dir = 0;  }
+
+
+if(hit_result.bHit)
+{
+    float3 hit_world_position =  ray_direction * (hit_result.hit_distance - gloabl_sdf_voxel_size) + probe_world_position + world_normal * gloabl_sdf_voxel_size * 2.0;
+
+    uint voxel_index_1d = GetVoxelIndexFromWorldPos(hit_world_position);
+    SVoxelLighting voxel_lighting = scene_voxel_lighting[voxel_index_1d];
+
+    float3 voxel_lighting_x = voxel_lighting.final_lighting[x_dir];
+    float3 voxel_lighting_y = voxel_lighting.final_lighting[y_dir];
+    float3 voxel_lighting_z = voxel_lighting.final_lighting[z_dir];
+
+    float weight_x = saturate(dot(ray_direction, voxel_light_direction[x_dir]));
+    float weight_y = saturate(dot(ray_direction, voxel_light_direction[y_dir]));
+    float weight_z = saturate(dot(ray_direction, voxel_light_direction[z_dir]));
+
+    radiance += (voxel_lighting_x * weight_x);
+    radiance += (voxel_lighting_y * weight_y);
+    radiance += (voxel_lighting_z * weight_z);
+
+    radiance /= (weight_x + weight_y + weight_z);
+}
+else
+{
+    radiance = float3(0.1,0.1,0.1); //hack sky light
+}
+```
+
+voxel lighting sampling result:
+
+<p align="center">
+    <img src="/resource/simlumen/image/voxel_trace_result.png" width="85%" height="85%">
+</p>
+
+
 ## Traced Radiance Composite
+
+Since the samples may be refined, we perform an additional composition pass to accumulate the ray samples. Each comptue group processes one probe ( 8x8 samples).
+
+```cpp
+groupshared uint shared_accumulator[PROBE_SIZE_2D * PROBE_SIZE_2D][3];
+```
+The refined ray weighs 1/4 and the other ray weighs 1.
+
+```cpp
+const float sample_weight = (float)8 / mip_size * 8 / mip_size; // level 0: weight 1/4, level 1: weight 1
+float3 lighting = screen_space_trace_radiance.Load(int3(dispatch_thread_idx.xy, 0)).xyz * sample_weight;
+```
+
+ We acclumulate the samples in a probe and assign the result to the original unrefined sample position.
+
+```cpp
+uint2 remaped_texel_coord = texel_coord * PROBE_SIZE_2D / mip_size;
+uint remapped_thread_idx = remaped_texel_coord.y * PROBE_SIZE_2D + remaped_texel_coord.x;
+
+uint3 quantized_lighting = lighting * lighting_quantize_scale;
+
+InterlockedAdd(shared_accumulator[remapped_thread_idx][0], quantized_lighting.x);
+InterlockedAdd(shared_accumulator[remapped_thread_idx][1], quantized_lighting.y);
+InterlockedAdd(shared_accumulator[remapped_thread_idx][2], quantized_lighting.z);
+```
+```cpp
+uint thread_index = group_thread_idx.y * PROBE_SIZE_2D + group_thread_idx.x;
+radiance = float3(shared_accumulator[thread_index][0], shared_accumulator[thread_index][1], shared_accumulator[thread_index][2]) / lighting_quantize_scale;
+```
+<p align="center">
+    <img src="/resource/simlumen/image/composition.png" width="75%" height="75%">
+</p>
+
+radiance composition result:
+
+<p align="center">
+    <img src="/resource/simlumen/image/composited_result.png" width="85%" height="85%">
+</p>
 
 ## Screen Radiance Filter
 
+Filter the screen space radiance to denoise the result. Radiance filter weight is a combination of **angle weight and depth weight** in Unreal Lumen. We use a **simple uniform weight** instead of an angle/depth weight because our scene is simple and most of the mesh is cubes.
+
+<p align="center">
+    <img src="/resource/simlumen/image/radiance_filter.png" width="40%" height="40%">
+</p>
+
+```cpp
+        float3 total_radiance = screen_space_radiance.Load(int3(dispatch_thread_idx.xy, 0)).xyz;
+        float total_weight = 1.0;
+
+        int2 offsets[4]; offsets[0] = int2(-1, 0); offsets[1] = int2(1, 0); offsets[2] = int2(0, -1); offsets[3] = int2(0, 1);
+
+        for (uint offset_index = 0; offset_index < 4; offset_index++)
+        {
+            int2 neighbor_index = offsets[offset_index] * PROBE_SIZE_2D + dispatch_thread_idx.xy;
+            if((neighbor_index.x >= 0) && (neighbor_index.x < is_pdf_thread_size_x) && (neighbor_index.y >= 0) && (neighbor_index.y < is_pdf_thread_size_y))
+            {
+                float neigh_depth = gbuffer_depth.Load(int3(ss_probe_atlas_pos.xy + offsets[offset_index] * PROBE_SIZE_2D, 0));
+                if(neigh_depth != 0)
+                {
+                    total_radiance += screen_space_radiance.Load(int3(dispatch_thread_idx.xy, 0)).xyz;
+                    total_weight += 1.0;
+                }
+            }
+        }
+
+        filtered_radiance = total_radiance / total_weight;
+```
+
+filtered radiance result:
+<p align="center">
+    <img src="/resource/simlumen/image/filtered_radiance.png" width="80%" height="80%">
+</p>
+
+
 ## Convert To Oct SH Representaion
 
+To denoise the radiance result further, we convert the radiance into **shperical harmonic**, which acts as a low-pass filter. After that we transform the SH into **octahedron** representation. The reason we perform this additional pass is to use **hardware bilinear filter** in the next integration pass. In order to avoid sampling the other probe's result, we add a pixel **board** around the center.
+
+<p align="center">
+    <img src="/resource/simlumen/image/radiance_to_oct.png" width="35%" height="35%">
+</p>
+
+```cpp
+uint2 texel_coord_with_boarder = OctahedralMapWrapBorder(uint2(write_idx_x, write_idx_y),SCREEN_SPACE_PROBE,1);
+float2 probe_texel_center = float2(0.5, 0.5);
+float2 probe_uv = (texel_coord_with_boarder + probe_texel_center) / (float)SCREEN_SPACE_PROBE;
+float3 texel_direction = EquiAreaSphericalMapping(probe_uv);
+
+FThreeBandSHVector diffuse_transfer = CalcDiffuseTransferSH3(texel_direction, 1.0f);
+float3 irradiance = 4.0f * PI * DotSH3(irradiance_sh, diffuse_transfer);
+screen_space_oct_irradiance[texel_screen_pos] = irradiance;
+```
+octahedron spherical  harmonic result:
+
+<p align="center">
+    <img src="/resource/simlumen/image/oct_sub.png" width="20%" height="20%">
+</p>
+<p align="center">
+    <img src="/resource/simlumen/image/oct_result.png" width="70%" height="70%">
+</p>
+
 ## Integrate
+
+With the boardered octahedron spherical harmonic, we can sample the sh by **hardware bilinear filter**, which denoises the result further.
+
+```cpp
+float3 GetScreenProbeIrradiance(uint2 probe_start_pos, float2 irradiance_probe_uv)
+{
+    float2 sub_pos = irradiance_probe_uv * (SCREEN_SPACE_PROBE - 1.0) + 1.0;
+    float2 texel_uv = (probe_start_pos * SCREEN_SPACE_PROBE + sub_pos) / float2(is_pdf_thread_size_x, is_pdf_thread_size_y);
+    return screen_space_oct_irradiance.SampleLevel(sampler_linear_clamp,texel_uv,0);
+}
+```
+
+For each screen pixel, we sample 5 screen probes and accumulate the samples. After dividing the result by the sum of the weights, we are able to obtain the final result for screen indirect lighting:
+
+<p align="center">
+    <img src="/resource/simlumen/image/screen_indirect_lighting_result.png" width="70%" height="70%">
+</p>
+
+# Result
+
+direct lighting only:
+<p align="center">
+    <img src="/resource/simlumen/image/direct_lighting_only.png" width="70%" height="70%">
+</p>
+
+with GI:
+<p align="center">
+    <img src="/resource/simlumen/image/with_gi.png" width="70%" height="70%">
+</p>
+
+[<u>**Source Code**</u>](https://github.com/ShawnTSH1229/SimLumen)
 
 
 
