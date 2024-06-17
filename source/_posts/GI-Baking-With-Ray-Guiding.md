@@ -1,6 +1,7 @@
 ---
 title: GI Baking With Ray Guiding
 date: 2024-06-14 23:08:32
+index_img: /resource/gi_rayguiding/image/result.png
 tags:
 ---
 
