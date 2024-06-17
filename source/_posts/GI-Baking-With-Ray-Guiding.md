@@ -4,7 +4,17 @@ date: 2024-06-14 23:08:32
 tags:
 ---
 
-# HWRTL
+# Introduction
+
+This project is part of HWRTL. HWRTL is a single file hardware ray tracing library containing GI baking, HLOD texture generation and DXR PVS generation.
+
+Firstly, we pack the lightmaps of each mesh into a number of atlases and search for the best lightmap layout with the smallest total size. The packing algorithm uses a third-party library: stb_pack. Then, generate the lightmap gbuffer by GPU and start light map path tracing. For each texels in the light map gbuffer, we trace 512 rays from the world position recorded in the gbuffer and each tracing bounces 32 times. For each bounce, we perform a light sampling and material sampling and combine them by multi-importance sampling to reduce variance.
+
+Furthermore, we have implemented part of the ray-guiding algorithm. First, we split the light map into clusters and each cluster shares the same luminance distribution, which can amplify the number of learning rays and reduce variance in the learned ray distribution. Then, map the ray sample direction of the first bounce into 2D, store the luminance at the corresponding position in the cluster and build the luminance distribution. After that, we build the luminance CDF in the compute shader by wave instruction. During the latter path tracing pass, we adjust the sample direction and PDF based on the ray guiding CDF.
+
+We perform a simple dilate pass in order to solve the sampling bleed problem caused by bilinear sampling.
+
+Unreal GPULM employs Odin(Open Image Denoise) to denoise the traced lightmap. We have implemented a custom denoising algorithm (Non-local means filtering)  to replace the Odin, since HWRTL design goal is a single file hardware raytracing library and we don’t want to involve the thirdparty.
 
 # Packing
 
@@ -598,6 +608,94 @@ In our example, we solve this problem by expanding the lightmap with some paddin
 
 
 # Denoise
+
+Unreal GPULM employs Odin(Open Image Denoise) to denoise the traced lightmap. We have implemented a custom denoising algorithm to replace the Odin, since HWRTL design goal is a single file hardware raytracing library and we don’t want to involve the thirdparty.
+
+Our algorithm is based on [<u>**Non-Local Means filtering**</u>](https://www.cs.umd.edu/~zwicker/publications/AdaptiveRenderingNLM-SIGA12.pdf) combined with Joint Filtering.
+
+## Bilateral Filtering
+
+>A bilateral filter is a non-linear, edge-preserving, and noise-reducing smoothing filter for images. It replaces the intensity of each pixel with a weighted average of intensity values from nearby pixels. This weight can be based on a Gaussian distribution. Crucially, the weights depend not only on Euclidean distance of pixels, but also on the radiometric differences (e.g., range differences, such as color intensity, depth distance, etc.). This preserves sharp edges
+>------From Wikipedia
+
+The bilateral filter is defined as:
+{% katex %} w_{bf}(p,q)=exp(\frac{-||p-q||^{2}}{2\sigma^{2}_{s}})exp(\frac{-||c_{p}-c_{q}||^{2}}{2\sigma^{2}_{r}}){% endkatex %}<br><br>
+
+A key issue with the bilateral filter, however, is that the range-distance estimation can be sensitive to noise.
+## Non-Local Means
+
+The non-local means (NL-Means) filter is a generalization of the bilateral filter where the range distance is computed using small patches {% katex %}P(x){% endkatex %}around the pixels [<u>**(NFOR)**</u>](https://benedikt-bitterli.me/nfor/nfor.pdf):
+{% katex %} w_{nlm}(p,q)=exp(\frac{-||p-q||^{2}}{2\sigma^{2}_{s}})exp(\frac{-||P_{p}-P_{q}||^{2}}{k^{2}2\sigma^{2}_{r}}){% endkatex %}<br><br>
+where k is a user parameter controlling the strength of the filter. The squared patch-based range distance is defined as:
+{% katex %} ||P_{p}-P_{q}||^{2}=max(0,\frac{1}{|P|}\sum_{n \in P_{0}}d(p+n,q+n)){% endkatex %}<br><br>
+where {% katex %}P_{p}{% endkatex %} is a square patch of size |P| (usually 7 x 7 pixels) centered on p, and P0 enumerates the offsets to the pixels within a patch. 
+## Joint Filtering
+If additional per-pixel information is available, the quality of bilateral or NL-Means filtering can be further improved by factoring the information into the weight-the so-called joint filtering[<u>**(NFOR)**</u>](https://benedikt-bitterli.me/nfor/nfor.pdf):
+{% katex %}w_{jnlm}(p,q)=w_{nlm}(p,q)*w_{aux}(p,q){% endkatex %}
+where {% katex %}w_{aux}(p,q){% endkatex %} is a weight derived from the additional information. Given a vector of k auxiliary feature buffers, {% katex %}f = (f1,..., fk){% endkatex %}, we can compute the weight as:
+{% katex %}w_{aux}(p,q)=\Pi_{i=1}^{k}exp(-d_{f,i}(p,q)){% endkatex %}<br>
+where:
+{% katex %}d_{f,i}(p,q) = \frac{||f_{i,p}-f_{i,q}||^{2}}{2\sigma^{2}_{i,p}}{% endkatex %}<br>
+and {% katex %}\sigma^{2}_{i}{% endkatex %} is the bandwidth of feature i. Joint filtering is typical for denoising MC renderings where feature buffers (e.g. normal, albedo, depth) can be obtained inexpensively as a byproduct of rendering the image
+
+## Implementation
+
+For the square patch Pp centered on p with the size of 20x20(HALF_SEARCH_WINDOW * 2) in our case, we compute the squared patch-based range distance to another patch Pq.
+
+Pp search range:
+```cpp
+for (int searchY = -HALF_SEARCH_WINDOW; searchY <= HALF_SEARCH_WINDOW; searchY++) 
+{
+	for (int searchX = -HALF_SEARCH_WINDOW; searchX <= HALF_SEARCH_WINDOW; searchX++) 
+    {
+    }
+}
+```
+
+Compute the color squared distance between these patches:
+```cpp
+for (int searchY = -HALF_SEARCH_WINDOW; searchY <= HALF_SEARCH_WINDOW; searchY++) 
+{
+	for (int searchX = -HALF_SEARCH_WINDOW; searchX <= HALF_SEARCH_WINDOW; searchX++) 
+    {
+        float2 searchUV = texUV + float2(searchX,searchY) * denoiseParamsBuffer.inputTexSizeAndInvSize.zw;
+                
+        float3 searchRGB = inputTexture.SampleLevel(gSamPointWarp, searchUV, 0.0).xyz;
+        float3 searchNormal = denoiseInputNormalTexture.SampleLevel(gSamPointWarp, searchUV, 0.0).xyz;
+
+        float patchSquareDist = 0.0f;
+		for (int offsetY = -HALF_PATCH_WINDOW; offsetY <= HALF_PATCH_WINDOW; offsetY++) 
+        {
+			for (int offsetX = -HALF_PATCH_WINDOW; offsetX <= HALF_PATCH_WINDOW; offsetX++) 
+            {
+                float2 offsetInputUV = texUV + float2(offsetX,offsetY) * denoiseParamsBuffer.inputTexSizeAndInvSize.zw;
+                float2 offsetSearchUV = searchUV + float2(offsetX,offsetY) * denoiseParamsBuffer.inputTexSizeAndInvSize.zw;
+
+                float3 offsetInputRGB = inputTexture.SampleLevel(gSamPointWarp, offsetInputUV, 0.0).xyz;
+                float3 offsetSearchRGB = inputTexture.SampleLevel(gSamPointWarp, offsetSearchUV, 0.0).xyz;
+                float3 offsetDeltaRGB = offsetInputRGB - offsetSearchRGB;
+                patchSquareDist += dot(offsetDeltaRGB, offsetDeltaRGB) - TWO_SIGMA_LIGHT_SQUARE;
+			}
+		}
+    }
+}
+```
+
+```cpp
+float2 pixelDelta = float2(searchX, searchY);
+float pixelSquareDist = dot(pixelDelta, pixelDelta);
+weight *= exp(-pixelSquareDist / TWO_SIGMA_SPATIAL_SQUARE);
+weight *= exp(-pixelSquareDist / FILTER_SQUARE_TWO_SIGMA_LIGHT_SQUARE);
+```
+
+Combine the result with the joint filter weight derived from the additional normal information:
+
+```cpp
+float3 normalDelta = inputNormal - searchNormal;
+float normalSquareDist = dot(normalDelta, normalDelta);
+weight *= exp(-normalSquareDist / TWO_SIGMA_NORMAL_SQUARE);
+```
+
 # LightMap Encoding
 
 1.Store the sqrt irradiance result to give more precision in the draw region.
