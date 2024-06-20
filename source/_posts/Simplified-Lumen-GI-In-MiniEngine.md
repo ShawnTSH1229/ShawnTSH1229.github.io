@@ -962,9 +962,6 @@ screen_space_oct_irradiance[texel_screen_pos] = irradiance;
 octahedron spherical  harmonic result:
 
 <p align="center">
-    <img src="/resource/simlumen/image/oct_sub.png" width="20%" height="20%">
-</p>
-<p align="center">
     <img src="/resource/simlumen/image/oct_result.png" width="70%" height="70%">
 </p>
 
@@ -999,7 +996,7 @@ with GI:
     <img src="/resource/simlumen/image/with_gi.png" width="70%" height="70%">
 </p>
 
-[<u>**Source Code**</u>](https://github.com/ShawnTSH1229/SimLumen)
+[<u>**Simplified Lumen Source Code**</u>](https://github.com/ShawnTSH1229/SimLumen)
 
 
 
