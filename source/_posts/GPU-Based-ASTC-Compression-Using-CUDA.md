@@ -209,18 +209,206 @@ after color projection:
 
 ### Compute Weight Quant Error
 
-Compute the quant errors for each candidate block mode.
+Compute the quant errors for each candidate block mode. Get the Quant method from the block mode and quantize the weights. After that, unquant the result by look up the precomputed quant map table. It should be noticed that the maximum color weight Quant method is Quant 32 and the maximum color end points Quant method is Quant 256.
 
+<p align="center">
+    <img src="/resource/cuda_astc/image/weight_quant_error.png" width="60%" height="60%">
+</p>
 
-weight_quant_error.png
+Accumulate the weight quantization error for the texel weights in the block.
 
+```cpp
+float error_summa = 0;
+for (unsigned int i = 0; i < bsd.texel_count; i++)
+{
+	// Load the weight set directly, without interpolation
+	float current_values = weight_quant_uvalue[i];
 
+	// Compute the error between the computed value and the ideal weight
+	float actual_values = eai.weights[i];
+	float diff = current_values - actual_values;
 
-
-
-It should be noticed that the maximum color weight Quant method is Quant 32 and the maximum color end points Quant method is Quant 256.
+	float error = diff * diff;
+	error_summa += error;
+}
+return error_summa;
+```
+weights quant error result:
+<p align="center">
+    <img src="/resource/cuda_astc/image/weight_quant_error_result.png" width="60%" height="60%">
+</p>
 
 ## Search Candidate EndPoint
+
+The next step is to search for the best K candidate end point format as we have the quant error of each block mode.
+
+### CEM
+
+CEM is the color endpoint mode field, which determines how the Color Endpoint Data is encoded. Here is the CEM layout for single-partition block layout:
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/cem_layout.png" width="60%" height="60%">
+</p>
+
+In single-partition mode, the Color Endpoint Mode (CEM) field stores one of 16 possible values. Each of these specifies how many raw data values are encoded, and how to convert these raw values into two RGBA color endpoints. They can be summarized as follows:
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/16cems.png" width="60%" height="60%">
+</p>
+
+ASTC has 16 color end point modes. To store the end points, Modes 0 to 3 use two integers, Modes 4 to 7 use four integers, Modes 7 to 11 use six integers, and Modes 12 to 15 use eight integers. In our implementation, we only support six modes: mode 0, mode 4, mode 6, mode 8, mode 10 and mode 12.
+
+Decode the different LDR endpoint modes as follows:
+
+1.Mode 0  LDR Luminance, direct:
+```cpp
+e0=(v0,v0,v0,0xFF); 
+e1=(v1,v1,v1,0xFF);
+```
+
+2.Mode 4  LDR Luminance+Alpha,direct:
+```cpp
+e0=(v0,v0,v0,v2);
+e1=(v1,v1,v1,v3);
+```
+
+3.Mode 6  LDR RGB, base+scale
+```cpp
+e0=(v0*v3>>8,v1*v3>>8,v2*v3>>8, 0xFF);
+e1=(v0,v1,v2,0xFF);
+```
+
+4.Mode 8  LDR RGB, Direct
+```cpp
+s0= v0+v2+v4; 
+s1= v1+v3+v5;
+if (s1>=s0)
+{
+	e0=(v0,v2,v4,0xFF);
+    e1=(v1,v3,v5,0xFF); 
+}
+else 
+{ 
+	e0=blue_contract(v1,v3,v5,0xFF);
+    e1=blue_contract(v0,v2,v4,0xFF); 
+}
+```
+5.Mode 10 LDR RGB, base+scale plus two A
+```cpp
+e0=(v0*v3>>8,v1*v3>>8,v2*v3>>8, v4);
+e1=(v0,v1,v2, v5)
+```
+
+6.Mode 12 LDR RGBA, direct
+```cpp
+s0= v0+v2+v4; s1= v1+v3+v5;
+if (s1>=s0)
+{
+	e0=(v0,v2,v4,v6);
+    e1=(v1,v3,v5,v7); 
+}
+else 
+{
+	e0=blue_contract(v1,v3,v5,v7);
+    e1=blue_contract(v0,v2,v4,v6); 
+}
+```
+Then, we estimate the error of each end point mode. Color end point modes can be classified into 3 types: luminance representation, scale representation and RGB representation. In astc-enc, the error estimation of luminance representation is the sum of the distances to vector normalize(lumi,lumin,lumin) = float3(0.57,0.57,0.57). Scale representation error estimation is the sum of the distance to vector normalize(EndPointA + EndPointB).
+```cpp
+	samec_rgb_lines.a = make_float4(0);
+	samec_rgb_lines.b = normalize_safe(avg);
+
+	float val = 0.577350258827209473f;
+	luminance_plines.amod = make_float4(0);
+	luminance_plines.bs = make_float4(val, val, val, 0.0f);
+```
+Calculate and accumulate the scale and luminance error of each texel:
+```cpp
+// Compute same chroma error - no "amod", its always zero
+param = data_r * samec_bs0+ data_g * samec_bs1 + data_b * samec_bs2;
+
+dist0 = (param * samec_bs0) - data_r;
+dist1 = (param * samec_bs1) - data_g;
+dist2 = (param * samec_bs2) - data_b;
+
+error = dist0 * dist0 + dist1 * dist1 + dist2 * dist2;
+
+samec_err += error;
+
+// Compute luma error - no "amod", its always zero
+param = data_r * l_bs0 + data_g * l_bs1 + data_b * l_bs2;
+
+dist0 = (param * l_bs0) - data_r;
+dist1 = (param * l_bs1) - data_g;
+dist2 = (param * l_bs2) - data_b;
+
+error = dist0 * dist0 + dist1 * dist1 + dist2 * dist2;
+
+l_err += error;
+```
+
+The endpoint encoding uses 21 quant levels and 4 kinds of integer numbers, resulting in a total candidate format count of 21 * 4. For each quant level, we choose the endpoint format for each kind of integer number.
+
+The error estimation contains six parts: baseline quant error, base quant error RGB, base quant error RGBA, scale error, luminance error, drop alpha error.
+
+1.Baseline quant error is precomputed in a look up table and indexed by quant level.
+```cpp
+__constant__ float baseline_quant_error[21 - QUANT_6]{
+	(65536.0f * 65536.0f / 18.0f) / (5 * 5),
+	(65536.0f * 65536.0f / 18.0f) / (7 * 7),
+	(65536.0f * 65536.0f / 18.0f) / (9 * 9),
+	(65536.0f * 65536.0f / 18.0f) / (11 * 11),
+	(65536.0f * 65536.0f / 18.0f) / (15 * 15),
+	(65536.0f * 65536.0f / 18.0f) / (19 * 19),
+	(65536.0f * 65536.0f / 18.0f) / (23 * 23),
+	(65536.0f * 65536.0f / 18.0f) / (31 * 31),
+	(65536.0f * 65536.0f / 18.0f) / (39 * 39),
+	(65536.0f * 65536.0f / 18.0f) / (47 * 47),
+	(65536.0f * 65536.0f / 18.0f) / (63 * 63),
+	(65536.0f * 65536.0f / 18.0f) / (79 * 79),
+	(65536.0f * 65536.0f / 18.0f) / (95 * 95),
+	(65536.0f * 65536.0f / 18.0f) / (127 * 127),
+	(65536.0f * 65536.0f / 18.0f) / (159 * 159),
+	(65536.0f * 65536.0f / 18.0f) / (191 * 191),
+	(65536.0f * 65536.0f / 18.0f) / (255 * 255)
+};
+```
+2.In our implementation, the base quant error of each channel is the same.  In astc-enc, the error of each channel can be adjusted by the user.
+
+```cpp
+float base_quant_error_rgb = 3 * blk.texel_count;
+float base_quant_error_a = 1 * blk.texel_count;
+float base_quant_error_rgba = base_quant_error_rgb + base_quant_error_a;
+```
+3.Scale error, luminance error and drop alpha error are computed in the previous step.
+
+4.The final error for each endpoint format is the combination of the above errors.
+
+Take the example of computing the error for the endpoint format encoded by 4 integers using the quant method 7.
+
+The error of mode <RGB base + scale> calculation formula is as follows:
+rgbs_alpha_error = base quant error **rgba** * baseline quant error of quant method 7 + **rgb scale** error
+
+The error of mode <RGB direct> calculation formula:
+full_ldr_rgb_error = base quant error **rgb** * baseline quant error of quant method 7 + **alpha drop** error
+
+Select the format with the minimum error:
+```cpp
+if (rgbs_alpha_error < full_ldr_rgb_error)
+{
+	best_error[i][2] = rgbs_alpha_error;
+	format_of_choice[i][2] = FMT_RGB_SCALE_ALPHA;
+}
+else
+{
+	best_error[i][2] = full_ldr_rgb_error;
+	format_of_choice[i][2] = FMT_RGB;
+}
+```
+
+
+
+
 ## Find The Actually Best Mode
 
 # GPU Based Implementation
