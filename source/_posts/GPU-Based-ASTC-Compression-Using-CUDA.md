@@ -40,7 +40,7 @@ Higher parts [001, 011, 100] equal to [1,3,4]. Using index [1][3][4] to search t
 
 
 ## Generate Block Mode
-ASTC uses 10 bits to store block modes, which means it has 2^10(2048) kind of possible choices. Given an ASTC compression format, some block modes may be invalid. For example, ASTC 4x4 compression format will never use a block mode with 6x6 texel weights. So we search for valid block modes and store the results in a global block mode table. In order to reduce the computation cost of block mode search, arm-astc reordered the block modes so that the better block mode has a higher priority.
+ASTC uses 10 bits to store block modes, which means it has 2^11(2048) kind of possible choices. Given an ASTC compression format, some block modes may be invalid. For example, ASTC 4x4 compression format will never use a block mode with 6x6 texel weights. So we search for valid block modes and store the results in a global block mode table. In order to reduce the computation cost of block mode search, arm-astc reordered the block modes so that the better block mode has a higher priority.
 
 Search block mode from 000000000(0) to 1111111111(2048).
 ```cpp
@@ -472,7 +472,150 @@ for (unsigned int i = 0; i < 4; i++)
     <img src="/resource/cuda_astc/image/candidate_block_mode.png" width="80%" height="80%">
 </p>
 
-
 ## Find The Actually Best Mode
+Iterate over the 4 candidate block modes to find which one is actually best by quantifying the block and computing the error after unquantifying.
+
+### RGB Scale Format Quantification
+As we quantize and decimate weights the optimal endpoint colors may change slightly, so we must recompute the ideal colors for a specific weight set.
+
+RGB scale format contains two parts: the base endpoint and the scale factor.
+
+```cpp
+e0=(v0*v3>>8,v1*v3>>8,v2*v3>>8, 0xFF);
+e1=(v0,v1,v2,0xFF);
+```
+Compute the scale direction by normalizing the mean color and projecting the block texels to the scale direction. In addition, recording the min/max scale factor.
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/rgb_scale.png" width="50%" height="50%">
+</p>
+
+Compute the base color and scale factor based on the scale direction and scale maximum factor.
+
+```cpp
+float scalediv = scale_min / max(scale_max, 1e-10f);
+scalediv = clamp(scalediv,0.0,1.0);
+
+float4 sds = scale_dir * scale_max;
+rgbs_vectors = make_float4(sds.x, sds.y, sds.z, scalediv);
+```
+
+### Quantify Endpoints
+
+Endpoint quantification is the same as interpolation weight quantification. There are only 17 possible quant levels and 255 possible values for each color channel. Therefore, the results can be stored in a precomputed table.
+<p align="center">
+    <img src="/resource/cuda_astc/image/color_quant_table.png" width="70%" height="70%">
+</p>
+
+### Error Metric
+
+Given a candidate block mode, interpolate the texel color using quantized color endpoints and quantized weights. Compute the color difference and estimate the error using the squared error metric.
+
+```cpp
+for (unsigned int i = 0; i < texel_count; i++)
+{
+	// quantized weight * quantized endpoint
+
+	float color_error_r = fmin(abs(color_orig_r - color_r), float(1e15f));
+	float color_error_g = fmin(abs(color_orig_g - color_g), float(1e15f));
+	float color_error_b = fmin(abs(color_orig_b - color_b), float(1e15f));
+	float color_error_a = fmin(abs(color_orig_a - color_a), float(1e15f));
+
+	// Compute squared error metric
+	color_error_r = color_error_r * color_error_r;
+	color_error_g = color_error_g * color_error_g;
+	color_error_b = color_error_b * color_error_b;
+	color_error_a = color_error_a * color_error_a;
+
+	float metric = color_error_r + color_error_g + color_error_b + color_error_a;
+
+	summa += metric;
+}
+```
+Find the block mode with the minimum block error.
+
+```cpp
+if (errorval < best_errorval_in_scb)
+{
+	best_errorval_in_scb = errorval;
+	workscb.errorval = errorval;
+	scb = workscb;
+}
+```
+## Block Encode
+
+Having found the best block mode with the minimum error, we can finally encode the block.
+
+Below is a layout of the ASTC block. It contains the following parts in order: texel weight data, color endpoint data, color endpoint mode, extra data and block mode data.
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/astc_block_mode_layout.png" width="85%" height="85%">
+</p>
+
+For texel weight, we scale the value based on the quant level of the best block mode. In order to improve the decoding efficiency, ASTC scrambles the order of the decoded values relative to the encoded values, which means that it must be compensated for in the encoder using a table.
+
+```cpp
+	uint8_t weights[64];
+	for (int i = 0; i < weight_count; i++)
+	{
+		float uqw = static_cast<float>(scb.weights[i]);
+		float qw = (uqw / 64.0f) * (weight_quant_levels - 1.0f);
+		int qwi = static_cast<int>(qw + 0.5f);
+		weights[i] = qat.scramble_map[qwi];
+	}
+```
+
+>Once unpacked, the values must be unquantized from their storage range, returning them to a standard range of 0- 255.
+>For bit-only representations, this is simple bit replication from the most significant bit of the value.
+>For trit or quint-based representations, this involves a set of bit manipulations and adjustments to avoid the expense of full-width multipliers. This procedure ensures correct scaling, but scrambles the order of the decoded values relative to the encoded values. This must be compensated for using a table in the encoder.
+
+The scramble map table is precomputed:
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/scramble_table.png" width="65%" height="65%">
+</p>
+
+Next, encode the integer sequence based on the Quant method. Assume that we encode the integer sequence using the Quant_80 method. Quant_80 method quantifies the integer sequence in quints form. Since 5^3 is 125, it is possible to pack three quints into 7 bits (which has 128 possible values), so a quint can be encoded as 2.33 bits. 
+
+We split the integer into higher and lower parts and pack three integers' higher parts into seven bits. The result is precomputed and stored in a lookup table.
+
+```cpp
+unsigned int i2 = input_data[i + 2] >> bits;
+unsigned int i1 = input_data[i + 1] >> bits;
+unsigned int i0 = input_data[i + 0] >> bits;
+
+uint8_t T = integer_of_quints[i2][i1][i0];
+```
+
+Then, pack the result with the lower part of the integer.
+
+```cpp
+			// Element 0
+			pack = (input_data[i++] & mask) | (((T >> 0) & 0x7) << bits);
+			write_bits(pack, bits + 3, bit_offset, output_data);
+			bit_offset += bits + 3;
+
+			// Element 1
+			pack = (input_data[i++] & mask) | (((T >> 3) & 0x3) << bits);
+			write_bits(pack, bits + 2, bit_offset, output_data);
+			bit_offset += bits + 2;
+
+			// Element 2
+			pack = (input_data[i++] & mask) | (((T >> 5) & 0x3) << bits);
+			write_bits(pack, bits + 2, bit_offset, output_data);
+			bit_offset += bits + 2;
+```
+The color endpoint packing is the same as the texel weight packing.
+
+before astc compression:
+<p align="center">
+    <img src="/resource/cuda_astc/image/before_astc_comression.png" width="65%" height="65%">
+</p>
+
+after astc compression:
+<p align="center">
+    <img src="/resource/cuda_astc/image/after_astc_compression.png" width="65%" height="65%">
+</p>
+
 
 # GPU Based Implementation
