@@ -20,7 +20,7 @@ In a sequence, each value has an identical range. The range is specified in one 
     <img src="/resource/cuda_astc/image/range_form.png" width="50%" height="50%">
 </p>
 
-There are 21 quant methods in ASTC, including 6 quints quant form, 7 trits quant form and 8 bits quant form.
+There are 21 quant methods in ASTC, including 6 quints quant forms, 7 trits quant forms and 8 bits quant forms.
 
 <p align="center">
     <img src="/resource/cuda_astc/image/range_table.png" width="40%" height="40%">
@@ -86,7 +86,7 @@ if (!valid || (x_weights > x_texels) || (y_weights > y_texels))
 	continue;
 }
 ```
-
+valid block mode:
 <p align="center">
     <img src="/resource/cuda_astc/image/valid_block_mode.png" width="65%" height="65%">
 </p>
@@ -103,7 +103,7 @@ We sum up the relative colors in the positive R, G, and B directions and calcula
     <img src="/resource/cuda_astc/image/color_gradient.png" width="65%" height="65%">
 </p>
 
-#### Endpoints Computation
+### Endpoints Computation
 
 Compute the mean color value and the main color direction first. There are many main direction calculation method. We use max accumulation pixel direction as the main direction, which is the same as the arm-astc implementation. We sum up the relative colors in the positive R, G, and B directions and calculate the sum of direction lengths.
 
@@ -157,7 +157,7 @@ Use the maximum sum direction as the main direction
 	dir = best_vector;
 ```
 
-#### Interpolation Weight Computation
+### Interpolation Weight Computation
 
 Project the color into the main direction for each texel and find the minimum and maximum projected value by the way.
 
@@ -205,9 +205,7 @@ after color projection:
     <img src="/resource/cuda_astc/image/after_color_projection.png" width="30%" height="30%">
 </p>
 
-## Compute Quant Error
-
-### Compute Weight Quant Error
+## Compute Weight Quant Error
 
 Compute the quant errors for each candidate block mode. Get the Quant method from the block mode and quantize the weights. After that, unquant the result by look up the precomputed quant map table. It should be noticed that the maximum color weight Quant method is Quant 32 and the maximum color end points Quant method is Quant 256.
 
@@ -238,7 +236,7 @@ weights quant error result:
     <img src="/resource/cuda_astc/image/weight_quant_error_result.png" width="60%" height="60%">
 </p>
 
-## Search Candidate EndPoint
+## Compute Endpoint Quant Error
 
 The next step is to search for the best K candidate end point format as we have the quant error of each block mode.
 
@@ -405,8 +403,74 @@ else
 	format_of_choice[i][2] = FMT_RGB;
 }
 ```
+<p align="center">
+    <img src="/resource/cuda_astc/image/cem_select.png" width="60%" height="60%">
+</p>
 
+### Find The Best Endpoint Quantization Format
+Search for all possible combinations of qunat level and color endpoint mode. We can obtain the available number of weight bits from the given block mode.  Given the number of available bits and the number of integer, we want to choose the quant level as high as possible to minimize the quantization error. It can be precomputed in a lookup table offline:
 
+<p align="center">
+    <img src="/resource/cuda_astc/image/quant_mode_table.png" width="60%" height="60%">
+</p>
+
+The best quant level can be directly accessed from the lookup table at runtime:
+```cpp
+int quant_level = quant_mode_table[integer_count][bits_available];
+```
+Store the best number of integers that has the minimum error given a block mode.
+```cpp
+for (int integer_count = 1; integer_count <= 4; integer_count++)
+{
+	int quant_level = quant_mode_table[integer_count][bits_available];
+
+	float integer_count_error = best_combined_error[quant_level][integer_count - 1];
+	if (integer_count_error < best_integer_count_error)
+	{
+		best_integer_count_error = integer_count_error;
+		best_integer_count = integer_count - 1;
+	}
+}
+```
+best color endpoint quant format:
+<p align="center">
+    <img src="/resource/cuda_astc/image/bast_color_endpoint_quant_format.png" width="75%" height="75%">
+</p>
+
+## Find The Candidate Block Mode
+The block mode total error is the sum of the errors that quantify the block texels weights and color endpoint.
+```cpp
+for (unsigned int i = start_block_mode; i < end_block_mode; i++)
+{
+	float total_error = error_of_best + qwt_errors[i];
+	errors_of_best_combination[i] = total_error;
+}
+```
+We only compute the rough estimation error up to the current step. The next step is to compute the exact error given a block mode. We need to compress and quantify the block texels for each block mode. Since it is an expensive process, we choose four candidate block modes based on the block mode estimation error.
+
+For each candidate block mode search iteration, find the block mode with the minimum error combining weight quant error and endpoint quant error, record the candidate block mode index:
+```cpp
+for (unsigned int i = 0; i < 4; i++)
+{
+	int best_error_index(-1);
+	float best_ep_error(ERROR_CALC_DEFAULT);
+
+	for (unsigned int j = start_block_mode; j < end_block_mode; j++)
+	{
+		float err = errors_of_best_combination[j];
+		bool is_better = err < best_ep_error;
+		best_ep_error = is_better ? err : best_ep_error;
+		best_error_index = is_better ? j : best_error_index;
+	}
+
+	best_error_weights[i] = best_error_index;
+	errors_of_best_combination[best_error_index] = ERROR_CALC_DEFAULT;
+}
+```
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/candidate_block_mode.png" width="80%" height="80%">
+</p>
 
 
 ## Find The Actually Best Mode
