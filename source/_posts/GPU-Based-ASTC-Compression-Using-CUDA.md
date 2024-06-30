@@ -2,7 +2,19 @@
 title: GPU Based ASTC Compression Using CUDA
 date: 2024-06-18 19:33:47
 tags:
+index_img: /resource/cuda_astc/image/blcok_mode_iteration.png
+
 ---
+# Overview
+ASTC is a fixed-rate, lossy texture compression system that is designed to offer an unusual degree of flexibility and to support a very wide range of use cases, while providing better image quality than most formats in common use today.
+
+However, ASTC need to search a lot of candidate block modes to find the best format. It takes a lot of time to compress the texture in practice. Since the texture block compression is not relevant to each other at all, we can compress the texture parallelly with GPU.
+
+In our project, we compress the texture with Cuda. The compression algorithm is based on the arm astc-enc implementation. It's a CPU-based compression program. We port arm-astc to GPU and make full use of the cuda to acclerate the texture compression.
+
+A naive implementation of GPU ASTC compression is compressing the ASTC texture block per thread, that is, task parallel compression. Since the block compression task is heavy and uses many registers, the number of active warps is low, which causes low occupancy. To make full use of the GPU, we use data parallel to compress the ASTC block per CUDA block. It splits the "for loop" task into each thread and shares the data between lanes by warp shuffle as possible as we can.
+
+The astc-enc implementation has a large number of intermediate buffers during candidate block mode searching, which has little performance impact on CPU-based implementations, but has a significant impact on GPU-based implementations. We have optimized this algorithm by in-place update, which removes the intermediate buffer.
 
 # CPU Based Implementation
 
@@ -607,15 +619,338 @@ Then, pack the result with the lower part of the integer.
 ```
 The color endpoint packing is the same as the texel weight packing.
 
-before astc compression:
+
+
+# GPU Based Implementation
+
+There are two ways to accelerate ASTC block compression: task parallel and data parallel. The task parallel is compressing the texture block per thread.  The task parallel for ASTC block compression is heavy and uses many registers. This means that the number of active warps is low and we have low occupancy. Therefore, we can't make full use of GPU for task parallel.  
+
+For data parallel, we compress the ASTC block per cuda block. The GPU-based implementation references the CPU implementation. It splits the "for loop" task into each thread and shares the data between lanes by warp shuffle as possible as we can. For those data that can't be efficiently shared by warp shuffle, we use shared memory to exchange the data.
+
+## Compute Endpoints
+
+The first step is computing the best projection direction for the current block. Before this step, we load the image pixel data per thread and compute the mean pixel data by warp reduce sum operation. Then we broadcast the mean data to the whole warp.
+
+Since the ASTC format 4x4 only has 16 texels to compress and the warp size on N-card is 32, we should mask the lanes used for block texels loading and sum operation.
+```cpp
+unsigned mask = __ballot_sync(0xFFFFFFFFu, tid < BLOCK_MAX_TEXELS);
+```
+
+We use the max accumulation direction method to compute the best direction, which is the same as the CPU-based implementation. Each lane computes the offset direction relative to the mean block color. Then, we perform warp reduce to compute the sum of the offsets in the xyz direction.
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/compute_avgs_and_dirs_3_comp_cuda.png" width="65%" height="65%">
+</p>
+
+If the lane ID is 0, compute and normalize the best direction based on the length of the sum of offsets in each direction.
+
+```cpp
+__inline__ __device__ float3 compute_avgs_and_dirs_3_comp(float3 datav,float3 data_mean, uint32_t lane_id, unsigned mask)
+{
+	float3 safe_dir;
+	float3 texel_datum = datav - data_mean;
+
+	float3 valid_sum_xp = (texel_datum.x > 0 ? texel_datum : float3(0, 0, 0));
+	float3 valid_sum_yp = (texel_datum.y > 0 ? texel_datum : float3(0, 0, 0));
+	float3 valid_sum_zp = (texel_datum.z > 0 ? texel_datum : float3(0, 0, 0));
+
+	float3 sum_xp = warp_reduce_vec_sum(mask, valid_sum_xp);
+	float3 sum_yp = warp_reduce_vec_sum(mask, valid_sum_yp);
+	float3 sum_zp = warp_reduce_vec_sum(mask, valid_sum_zp);
+
+	if (lane_id == 0)
+	{
+		float prod_xp = dot(sum_xp, sum_xp);
+		float prod_yp = dot(sum_yp, sum_yp);
+		float prod_zp = dot(sum_zp, sum_zp);
+
+		float3 best_vector = sum_xp;
+		float best_sum = prod_xp;
+
+		if (prod_yp > best_sum)
+		{
+			best_vector = sum_yp;
+			best_sum = prod_yp;
+		}
+
+		if (prod_zp > best_sum)
+		{
+			best_vector = sum_zp;
+			best_sum = prod_zp;
+		}
+
+		if ((best_vector.x + best_vector.y + best_vector.z) < 0.0f)
+		{
+			best_vector = -best_vector;
+		}
+
+		float length_dir = length(best_vector);
+		safe_dir = (length_dir < 1e-10) ? normalize(make_float3(1.0)) : normalize(best_vector);
+	}
+	return safe_dir;
+}
+```
+Compute the interpolation weight for each block texels. First, broadcast the best direction to the whole warp and project the texel data to the best direction. Then, use __shfl_xor_sync to compute the min/max value. With the min/max value, we can compute the scaled weight and store the result in shared memory.
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/compute_ideal_colors_and_weights_4_comp.png" width="65%" height="65%">
+</p>
+
+## Find The Candidate Block Mode
+
+Our algorithm is based on the arm astc-enc implementation. However, we can't port the astc-enc to Cuda directly. The astc-enc implementation has a large number of intermediate buffers during candidate block mode searching, which has little performance impact on CPU-based implementations, but has a significant impact on GPU-based implementations.
+
+Here is a brief introduction to how astc-enc finds the candidate block mode:
+
+1.Compute the quant error for each block mode and store the result and quant bits used in an intermediate buffer with the size of 2048 * (float + uint8)
+
+2.For each block mode, compute the best combination with the candidate color quant format. This step has 3 intermediate buffers: best combination error buffer with the size of 2048xfloat, best color quant level buffer with the size of 2048xuint8, best endpoint format with the size of 2048xuint. 
+
+3.Choose 4 best candidate block mode and compute the more accurate error.
+
+4.Compress the block using the best block mode
+
+A lot of memory is wasted on the intermediate buffer. We have optimized this algorithm by in-place update, which removes the usage of the intermediate buffer:
+
+1.Maintain a buffer recording the 4 candidate quant formats. 
+
+2.Iterate the block mode, compute the interpolation weight quant error, the best combination with the color quant format.
+
+3.Compare with the candidate quant format stored in the step 1. Replace the candidate mode that has a larger error to current quant format.
+
+4.Other steps are the same as the astc-enc implementation.
+
+### Prepare
+
+Before iterating 2048 candidate block modes, we need to prepare some infomation used in block quant error computation.
+
+The first one is the color endpoint format error for scale-based color endpoints or luminance-based color endpoints. We compute the errors for each block pixel and sum up the error by warp reduction. Then store the results in shared memory.
+
+```cpp
+	// Luminance always goes though zero, so this is simpler than the others
+	float val = 0.577350258827209473f;
+	luminance_plines.amod = make_float3(0);
+	luminance_plines.bs = make_float3(val, val, val);
+
+	// Compute uncorrelated error
+	float param = dot(datav, uncor_rgb_plines.bs);
+	float3 dist = (uncor_rgb_plines.amod + param * uncor_rgb_plines.bs) - datav;
+	float uncor_err = dot(dist, dist);
+
+	// Compute same chroma error - no "amod", its always zero
+	param = dot(datav, samec_rgb_plines.bs);
+	dist = param * samec_rgb_plines.bs - datav;
+	float samec_err = dot(dist, dist);
+
+	// Compute luma error - no "amod", its always zero
+	param = dot(datav, luminance_plines.bs);
+	dist = param * luminance_plines.bs - datav;
+	float l_err = dot(dist, dist);
+
+	if (tid == 0)
+	{
+		shared_data_mean = data_mean;
+		shared_scale_dir = samec_rgb_lines.b;
+	}
+
+	__syncwarp(mask);
+
+	float sum_uncor_err = warp_reduce_sum(mask, uncor_err);
+	float sum_samec_err = warp_reduce_sum(mask, samec_err);
+	float sum_l_err = warp_reduce_sum(mask, l_err);
+
+	if (lane_id == 0)
+	{
+		shared_rgb_scale_error = (sum_samec_err - sum_uncor_err) * 0.7f;// empirical
+		shared_luminance_error = (sum_l_err - sum_uncor_err) * 3.0f;// empirical
+	}
+```
+Color endpoint has 21 quant methods and 4 kind of interger number to quant with total 21*4 possible combinations. We precomputed the result before block mode iteration. Each thread computes one error for one quant method and stores the result in shared memory.
+
+```cpp
+__inline__ __device__ void compute_color_error_for_every_integer_count_and_quant_level(const block_size_descriptor* const bsd, uint32_t tid)
+{
+	int choice_error_idx = tid;
+	if (choice_error_idx >= QUANT_2 && choice_error_idx < QUANT_6)
+	{
+		shared_best_error[choice_error_idx][3] = ERROR_CALC_DEFAULT;
+		shared_best_error[choice_error_idx][2] = ERROR_CALC_DEFAULT;
+		shared_best_error[choice_error_idx][1] = ERROR_CALC_DEFAULT;
+		shared_best_error[choice_error_idx][0] = ERROR_CALC_DEFAULT;
+
+		shared_format_of_choice[choice_error_idx][3] = FMT_RGBA;
+		shared_format_of_choice[choice_error_idx][2] = FMT_RGB;
+		shared_format_of_choice[choice_error_idx][1] = FMT_RGB_SCALE;
+		shared_format_of_choice[choice_error_idx][0] = FMT_LUMINANCE;
+	}
+
+	float base_quant_error_rgb = 3 * bsd->texel_count;
+	float base_quant_error_a = 1 * bsd->texel_count;
+	float base_quant_error_rgba = base_quant_error_rgb + base_quant_error_a;
+
+	if (choice_error_idx >= QUANT_6 && choice_error_idx <= QUANT_256)
+	{
+		float base_quant_error = baseline_quant_error[choice_error_idx - QUANT_6];
+		float quant_error_rgb = base_quant_error_rgb * base_quant_error;
+		float quant_error_rgba = base_quant_error_rgba * base_quant_error;
+
+		// 8 integers can encode as RGBA+RGBA
+		float full_ldr_rgba_error = quant_error_rgba;
+		shared_best_error[choice_error_idx][3] = full_ldr_rgba_error;
+		shared_format_of_choice[choice_error_idx][3] = FMT_RGBA;
+
+		// 6 integers can encode as RGB+RGB or RGBS+AA
+		float full_ldr_rgb_error = quant_error_rgb + 0;
+		float rgbs_alpha_error = quant_error_rgba + shared_rgb_scale_error;
+
+		if (rgbs_alpha_error < full_ldr_rgb_error)
+		{
+			shared_best_error[choice_error_idx][2] = rgbs_alpha_error;
+			shared_format_of_choice[choice_error_idx][2] = FMT_RGB_SCALE_ALPHA;
+		}
+		else
+		{
+			shared_best_error[choice_error_idx][2] = full_ldr_rgb_error;
+			shared_format_of_choice[choice_error_idx][2] = FMT_RGB;
+		}
+
+		// 4 integers can encode as RGBS or LA+LA
+		float ldr_rgbs_error = quant_error_rgb + 0 + shared_rgb_scale_error;
+		float lum_alpha_error = quant_error_rgba + shared_luminance_error;
+
+		if (ldr_rgbs_error < lum_alpha_error)
+		{
+			shared_best_error[choice_error_idx][1] = ldr_rgbs_error;
+			shared_format_of_choice[choice_error_idx][1] = FMT_RGB_SCALE;
+		}
+		else
+		{
+			shared_best_error[choice_error_idx][1] = lum_alpha_error;
+			shared_format_of_choice[choice_error_idx][1] = FMT_LUMINANCE_ALPHA;
+		}
+
+		// 2 integers can encode as L+L
+		float luminance_error = quant_error_rgb + 0 + shared_luminance_error;
+
+		shared_best_error[choice_error_idx][0] = luminance_error;
+		shared_format_of_choice[choice_error_idx][0] = FMT_LUMINANCE;
+	}
+}
+```
+
+### Block Mode Iteration
+
+To make full use of the GPU, we process 2 block modes for each block mode iteration. Each processed block mode is handled by 16 threads, which is half the size of the warp. 
+
+```cpp
+unsigned int max_block_modes = bsd->block_mode_count_1plane_selected;
+int block_mode_process_idx = 0;
+while (block_mode_process_idx < max_block_modes)
+{
+	__syncwarp();
+
+	int sub_block_idx = tid / 16;
+	int in_block_idx = tid % 16;
+
+	int global_idx = sub_block_idx + block_mode_process_idx; // ignore the last block mode for now
+	bool is_block_mode_index_valid = (block_mode_process_idx + 1) < max_block_modes;
+	if (is_block_mode_index_valid)
+	{
+		
+	}
+}
+```
+
+In the arm astc-enc implementation, weight quant errors are computed separately from color endpoint quant errors. The process generates a lot of intermediate buffers. To optimize intermediate buffer usage, we combine the separate passes together and update the total error in-place.
+
+We compute the difference between quanted weights and unquantified weights per thread. The quant error of the block mode is computed by summing the squared texel error using warp reduction.
+
+For each block mode, dispatch four threads to compute the combined error for four endpoint quant formats: integer number 1 to integer number 4. Then, use __shfl_xor_sync to find the best endpoint quant format with minimum error.
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/blcok_mode_iteration.png" width="65%" height="65%">
+</p>
+
+We maintain a shared candidate block mode buffer with 4 actual candidate block modes and 2 block modes updated during each iteration. The last two block modes (4 + 0 and 4 + 1) are used for final GPU sorting.
+
+```cpp
+if (in_block_idx == 0)
+{
+	best_integer_count_error = integer_count_error;
+
+	int ql = quant_mode_table[best_integer_count + 1][bitcount];
+
+	uint8_t best_quant_level = static_cast<uint8_t>(ql);
+	uint8_t best_format = FMT_LUMINANCE;
+
+	if (ql >= QUANT_6)
+	{
+		best_format = shared_format_of_choice[ql][best_integer_count];
+	}
+
+	float total_error = best_integer_count_error + error;
+
+	candidate_ep_format_specifiers[4 + sub_block_idx] = best_format;
+	candidate_block_mode_index[4 + sub_block_idx] = global_idx;
+	candidate_color_quant_level[4 + sub_block_idx] = ql;
+	candidate_combine_errors[4 + sub_block_idx] = total_error;
+}
+```
+When current block mode iterations have been completed, perform a GPU sorting. The first four candidate block modes are used in the next pass.
+
+```cpp
+if (tid < 6)
+{
+	int num_samller = 0;
+	float current_tid_error = candidate_combine_errors[tid];
+	float current_ep_format_specifier = candidate_ep_format_specifiers[tid];
+	int current_blk_mode_idx = candidate_block_mode_index[tid];
+	int current_col_quant_level = candidate_color_quant_level[tid];
+
+	#pragma unroll
+	for (int candiate_idx = 0; candiate_idx < 6; candiate_idx++)
+	{
+		float other_candidate_error = candidate_combine_errors[candiate_idx];
+		if ((other_candidate_error < current_tid_error) || ((other_candidate_error == current_tid_error) && (candiate_idx < tid)))
+		{
+			num_samller++;
+		}
+	}
+
+	// 0011 1111
+	__syncwarp(0x0000003F);
+	candidate_combine_errors[num_samller] = current_tid_error;
+	candidate_ep_format_specifiers[num_samller] = current_ep_format_specifier;
+	candidate_block_mode_index[num_samller] = current_blk_mode_idx;
+	candidate_color_quant_level[num_samller] = current_col_quant_level;
+}
+```
+## Find The Best Block Mode
+
+We get four block mode candidates after all block mode iterations are complete. However, to accelerate block mode seraching, the candidate block modes are selected by approximate error instead of the actual difference between the original color and the compressed color. So, in the current pass, we quantify the interpolation weights and color endpoints and compute the exact difference between compressed color and original color.
+
+The exact best block mode is stored in shared memory that will be used in the final block mode compression.
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/compute_symbolic_block_difference_1plane_1partition.png" width="65%" height="65%">
+</p>
+
+## Compress the block mode
+
+The final block mode compression is the same as the CPU-based implementation.
+
+after astc compression:
 <p align="center">
     <img src="/resource/cuda_astc/image/before_astc_comression.png" width="65%" height="65%">
 </p>
 
-after astc compression:
+before astc compression:
 <p align="center">
     <img src="/resource/cuda_astc/image/after_astc_compression.png" width="65%" height="65%">
 </p>
 
 
-# GPU Based Implementation
+[<u>**GPU ASTC Compression Source Code**</u>](https://github.com/ShawnTSH1229/fgac)
+
+
+
