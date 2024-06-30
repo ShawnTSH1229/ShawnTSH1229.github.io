@@ -1,5 +1,5 @@
 ---
-title: GPU Based ASTC Compression Using CUDA
+title: ASTC Compression Accleration Using CUDA
 date: 2024-06-18 19:33:47
 tags:
 index_img: /resource/cuda_astc/image/blcok_mode_iteration.png

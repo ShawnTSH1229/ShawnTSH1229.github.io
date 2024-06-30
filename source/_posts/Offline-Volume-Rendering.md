@@ -1,5 +1,5 @@
 ---
-title: Volume Rendering In Offline Rendering
+title: Offline Volume Rendering
 date: 2024-05-05 15:25:57
 tags:
 index_img: /resource/volumerendering/image/deltatrack.png
