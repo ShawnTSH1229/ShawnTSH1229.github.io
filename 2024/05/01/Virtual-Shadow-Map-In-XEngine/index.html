@@ -1,0 +1,743 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Shawn Tang">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="IntroductionVirtual Shadow Maps (VSMs) is the new shadow mapping method used in Unreal Engine 5. I implemented a simplified virtual shadow maps in my personal game engine. Here is a brief introduction">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Virtual Shadow Map In XEngine">
+<meta property="og:url" content="http://example.com/2024/05/01/Virtual-Shadow-Map-In-XEngine/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="IntroductionVirtual Shadow Maps (VSMs) is the new shadow mapping method used in Unreal Engine 5. I implemented a simplified virtual shadow maps in my personal game engine. Here is a brief introduction">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/resource/vsm_project/image/index_image.png">
+<meta property="article:published_time" content="2024-05-01T10:51:18.000Z">
+<meta property="article:modified_time" content="2024-05-05T10:52:52.514Z">
+<meta property="article:author" content="Shawn Tang">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/resource/vsm_project/image/index_image.png">
+  
+  
+  
+  <title>Virtual Shadow Map In XEngine - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.7","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":10},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>ShawnTSH1229</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>Home</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>Archives</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>Categories</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>About</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Virtual Shadow Map In XEngine"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-05-01 18:51" pubdate>
+          May 1, 2024 pm
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          712 words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          6 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">Virtual Shadow Map In XEngine</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h1><p>Virtual Shadow Maps (VSMs) is the new shadow mapping method used in Unreal Engine 5. I implemented a <strong>simplified virtual shadow maps</strong> in my <strong>personal game engine</strong>. Here is a brief introduction from the official unreal engine 5 documentation:</p>
+<blockquote>
+<p>Virtual Shadow Maps have been developed with the following goals:</p>
+<ul>
+<li>Significantly increase shadow resolution to match highly detailed Nanite geometry</li>
+<li>Plausible soft shadows with reasonable, controllable performance costs</li>
+<li>Provide a simple solution that works by default with limited amounts of adjustment needed</li>
+<li>Replace the many Stationary Light shadowing techniques with a single, unified path</li>
+</ul>
+<p>Conceptually, virtual shadow maps are just very <strong>high-resolution</strong> shadow maps. In their current implementation, they have a <strong>virtual resolution</strong> of 16k x 16k pixels. <strong>Clipmaps</strong> are used to increase resolution further for Directional Lights. To keep performance high at reasonable memory cost, VSMs split the &gt;shadow map into tiles (or Pages) that are 128x128 each. Pages are allocated and rendered only as needed to shade <strong>on-screen pixels</strong> based on an analysis of the depth buffer. The pages are <strong>cached</strong> between frames unless they are invalidated by moving objects or light, which further improves performance.</p>
+</blockquote>
+<p>According to the Unreal Engine VSMs documentation, VSMs have four key features: virtual high-resolution texture, clipmaps, only shade on-screen pixels and page cache. We have implemented the four features listed above in the simplified virtual shadow map project. Here is the low-level architecture of our simplified VSMs:</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/low_level_architecture.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<p>In XEngine’s simplified virtual shadow map, each directional light has a clip map with 3 levels: clip map level 6, clip map level 7 and clip map level 8. In addition, the maximum clip map level consists of 8 x 8 tiles, with the next clip map level having twice the number of tiles as the previous clip map level. The total tile number is 1344 (32 x 32 + 16 x 16 + 8 x 8), which corresponds to 8K x 8K virtual texture size. Each tile have the same physical size with 256 x 256 pixels. The physical tile pool’s size is 2K x 2K.</p>
+<h1 id="Overview"><a href="#Overview" class="headerlink" title="Overview"></a>Overview</h1><p>Note: To achieve the <strong>highest possible performance</strong>, it is recommended that combining the virtual shadow map with a <strong>Nanite-like</strong> technique which divides the mesh into clusters. Otherwise, <strong>fine-grained tile splitting</strong> could result in significant increases in the draw call and the mesh face number.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/renderdoc.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<p>Simplified VSMs classify the tiles into different states based on the scene depth and the mesh bound box. It contains four tile states: shaded, not visible, cache miss and newly added tile state. VSMs performs different action for each tile with its tile state, such as update the physical tile content, allocate or remove the tile in the physical tile pool. Next, cull and build the mesh draw command for those tiles that need to be updated in the current frame. Finally, dispatch a set of indirect draw commands and compute the shadow mask using the shadow depth map rendered by indirect draw:</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/pass_overview.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<h1 id="Mark-Tile-State"><a href="#Mark-Tile-State" class="headerlink" title="Mark Tile State"></a>Mark Tile State</h1><h2 id="Mark-Tiles-Used"><a href="#Mark-Tiles-Used" class="headerlink" title="Mark Tiles Used"></a>Mark Tiles Used</h2><p>Only the tiles that affect objects in the camera view are processed by VSMs. In order to achieve this goal, VSMs analyze the scene depth buffer by convert the pixels from camera projection space to shadow view space to find which tile this pixel corresponds to. Moreover, VSMs calculate the clip map level this pixel belongs to based on its distance from world space to the camera. As shown in the following image, the green blocks are marked as used tiles in VSMs, while the red blocks are not used.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/vsm_tile_mark_drawio.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>Simplified VSMs have 3 clip map levels. The ranges of each mip level are 2^(6 + 1) ,2^(7 + 1)  and 2^(8 + 1). The first level is 6, which means that the pixels distance to the camera ranging from 0 to 2^6 are belong to this level. Based on the mip level, shadow space UV, and mip size, we can determine which tile this pixel belongs to.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> Distance = <span class="hljs-built_in">length</span>(WorldCameraPosition - WorldPosition.xyz);<br><span class="hljs-type">float</span> Log2Distance = <span class="hljs-built_in">log2</span>(Distance + <span class="hljs-number">1</span>);<br> <br><span class="hljs-type">int</span> MipLevel = <span class="hljs-built_in">clamp</span>(Log2Distance - VSM_CLIPMAP_MIN_LEVEL, <span class="hljs-number">0</span>, VSM_MIP_NUM - <span class="hljs-number">1</span>);<br>uint2 VSMTileIndex = <span class="hljs-built_in">uint2</span>(UVOut * MipLevelSize[MipLevel]);<br><br><span class="hljs-type">int</span> DestTileInfoIndex = MipLevelOffset[MipLevel] + VSMTileIndex.y * MipLevelSize[MipLevel] + VSMTileIndex.x;<br><br>VirtualShadowMapTileState[DestTileInfoIndex] = TILE_STATE_USED;<br></code></pre></td></tr></table></figure>
+<p>Here is a visualization of the mip level for the scene. The Mip Levels 6 &#x2F; 7 &#x2F; 8 correspond to the colors red, green, and blue, respectively. </p>
+<p align="center">
+    <img src="/resource/vsm_project/image/vsm_tile_mark_visualize.png" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+<h2 id="Mark-Cache-Miss-Tiles"><a href="#Mark-Cache-Miss-Tiles" class="headerlink" title="Mark Cache Miss Tiles"></a>Mark Cache Miss Tiles</h2><p>VSMs only update the tiles that have changed compared to previous frame. This reduces the number of draw calls since we can reuse the previous frame data in the cached virtual shadow map texture. To find all of the tiles that changed in this frame, simplified VSMs project the bound boxes of the dynamic objects into the shadow view space. Following that, the VSM iterates and marks all tiles within these bound boxes projected range. The VSMs only mark tiles as cache misses for <strong>those tiles that were rendered in this frame</strong>. All of the mip levels covered are conservatively marked as cache miss. In the following gif image, we can see that the cache missed tile with yellow color is updated every frame:</p>
+<p align="center">
+    <img src="/resource/vsm_project/gif/tile_cache_miss.gif" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+<h1 id="Update-Tile-Action"><a href="#Update-Tile-Action" class="headerlink" title="Update Tile Action"></a>Update Tile Action</h1><p>In the tile action update pass, VSMs compare the current tile state with the previous frame’s tile state. A ping-pong buffer is used to store the previous’s tile state buffer and tile table buffer. The tile table buffer stores the index to the physical tile texture.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/update_tile_action.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>Newly added tiles in this frame will allocate a new physical tile and update the shadow rendering. For cached tiles, we only update the tile shadow rendering. There is no need to allocate an extra physical tile for the cached tile. We reuse the cached tile by assign it with the index copyed from the corresponding position in the previoues tile table.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">bool</span> bTileUsed = (TileState == TILE_STATE_USED);<br><span class="hljs-type">bool</span> bPreTileUsed = (PreTileState == TILE_STATE_USED);<br><span class="hljs-type">bool</span> bNewTile = (TileState == TILE_STATE_USED) &amp;&amp; (PreTileState == TILE_STATE_UNUSED);<br><span class="hljs-type">bool</span> bCacheMissTile = (CacheMissAction == TILE_STATE_CACHE_MISS) &amp;&amp; (PreTileState == TILE_STATE_USED);<br><span class="hljs-type">bool</span> bTileRemove = (TileState == TILE_STATE_UNUSED) &amp;&amp; (PreTileState == TILE_STATE_USED);<br><span class="hljs-type">bool</span> bTileActionCached = (bPreTileUsed) &amp;&amp; (bTileUsed) &amp;&amp; (!bCacheMissTile);<br><span class="hljs-type">bool</span> bTileActionNeedRemove = bTileRemove;<br><br>uint TileAction = <span class="hljs-number">0</span>;<br><br><span class="hljs-keyword">if</span>(bTileActionCached)<br>&#123;<br>    VirtualShadowMapTileTable[GlobalTileIndex] = VirtualShadowMapPreTileTable[GlobalTileIndex];<br>    TileAction = TILE_ACTION_CACHED;<br>&#125;<br><br><span class="hljs-keyword">if</span>(bCacheMissTile)<br>&#123;<br>    VirtualShadowMapTileTable[GlobalTileIndex] = VirtualShadowMapPreTileTable[GlobalTileIndex];<br>    TileAction = TILE_ACTION_NEED_UPDATE;       <br>&#125;<br><br><span class="hljs-keyword">if</span>(bNewTile)<br>&#123;<br>    TileAction = TILE_ACTION_NEED_ALLOCATE | TILE_ACTION_NEED_UPDATE;<br>&#125;<br><br><span class="hljs-keyword">if</span>(bTileActionNeedRemove)<br>&#123;<br>    TileAction = TILE_ACTION_NEED_REMOVE;<br>&#125;<br><br>VirtualShadowMapTileAction[GlobalTileIndex] = TileAction;<br></code></pre></td></tr></table></figure>
+<h1 id="Physical-Tile-Management"><a href="#Physical-Tile-Management" class="headerlink" title="Physical Tile Management"></a>Physical Tile Management</h1><p>VSMs maintain a list of available physical tiles. An extra counter buffer records the free list header node. The physical tile manager allocates a free tile from the free tile list when the tile action equals TILE_ACTION_NEED_ALLOCATE and assigns the tile index to the corresponding position of the current frame virtual tile table when the tile action equals TILE_ACTION_NEED_ALLOCATE. The physical tile manager will obtain the released tile index from the previous frame tile table and push it to the back of the free tile list if the tile action is TILE_ACTION_NEED_REMOVE.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/physical_tile_manage.png" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+<p>We move the counter forward or backward by InterlockedAdd instruction. The tile realse and tile allocate action are performed in separate compute pass. VSMs in UE5 maintain a LRU list in the physical tile manager. For simplicity, we release the tile buffer immediately after the tiles are marked as TILE_ACTION_NEED_REMOVE.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(VirtualShadowMapAction &amp; TILE_ACTION_NEED_ALLOCATE)<br>&#123;<br>    uint FreeListIndex = <span class="hljs-number">0</span>;<br>    <span class="hljs-built_in">InterlockedAdd</span>(VirtualShadowMapFreeListStart[<span class="hljs-number">0</span>],<span class="hljs-number">1</span>,FreeListIndex);<br>    <span class="hljs-keyword">if</span>(FreeListIndex &lt; VSM_TEX_PHYSICAL_WH * VSM_TEX_PHYSICAL_WH)<br>    &#123;<br>        VirtualShadowMapTileTable[GlobalTileIndex] = VirtualShadowMapFreeTileList[FreeListIndex];<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(VirtualShadowMapAction &amp; TILE_ACTION_NEED_REMOVE)<br>&#123;<br>    <span class="hljs-type">int</span> FreeListIndex = <span class="hljs-number">0</span>;<br>    <span class="hljs-built_in">InterlockedAdd</span>(VirtualShadowMapFreeListStart[<span class="hljs-number">0</span>],<span class="hljs-number">-1</span>,FreeListIndex);<br>    <span class="hljs-keyword">if</span>(FreeListIndex &gt; <span class="hljs-number">0</span>)<br>    &#123;<br>        uint RemoveTileIndex = VirtualShadowMapPreTileTable[GlobalTileIndex];<br>        VirtualShadowMapFreeTileList[FreeListIndex - <span class="hljs-number">1</span>] = RemoveTileIndex;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>When rotating the camera, we can see that the free tiles (red blocks in the top-right corner) are changed:</p>
+<p align="center">
+    <img src="/resource/vsm_project/gif/physical_tile_allocation.gif" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<h1 id="Cull-And-Build-The-Shadow-Draw-Command"><a href="#Cull-And-Build-The-Shadow-Draw-Command" class="headerlink" title="Cull And Build The Shadow Draw Command"></a>Cull And Build The Shadow Draw Command</h1><h2 id="Allocate-The-Shadow-Commands"><a href="#Allocate-The-Shadow-Commands" class="headerlink" title="Allocate The Shadow Commands"></a>Allocate The Shadow Commands</h2><p>VSMs build the command on the GPU and render the shadow map by indirect draw command. Here is the indirect command layout specified on the application side: constant buffer view for per-object transform information, tile info cbv, vertex buffer view, index buffer view and indirect argument desc.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/indirect_cmd_layout.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>After that, we allocate the command data on the application side. It contains the GPU address of the buffer, information about the vertex buffer and index buffer, as well as information about the object mesh. In the final step, initialize the scene command buffer with the data allocated above and create an empty culled command buffer with the same size as the scene command buffer. The culled command buffer is a collection of commands used in shadow map rendering after GPU culling.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs cpp">std::vector&lt;XRHICommandData&gt; RHICmdData;<br>RHICmdData.<span class="hljs-built_in">resize</span>(RenderGeos.<span class="hljs-built_in">size</span>());<br><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; RenderGeos.<span class="hljs-built_in">size</span>(); i++)<br>&#123;<br>	<span class="hljs-keyword">auto</span>&amp; it = RenderGeos[i];<br>	RHICmdData[i].CBVs.<span class="hljs-built_in">push_back</span>(it-&gt;<span class="hljs-built_in">GetAndUpdatePerObjectVertexCBuffer</span>().<span class="hljs-built_in">get</span>());<br>	RHICmdData[i].CBVs.<span class="hljs-built_in">push_back</span>(VirtualShadowMapResource.LightSubProjectMatrix.<span class="hljs-built_in">get</span>());<br>	RHICmdData[i].CBVs.<span class="hljs-built_in">push_back</span>(VirtualShadowMapResource.LightSubProjectMatrix.<span class="hljs-built_in">get</span>());<br><br>	<span class="hljs-keyword">auto</span> VertexBufferPtr = it-&gt;<span class="hljs-built_in">GetRHIVertexBuffer</span>();<br>	<span class="hljs-keyword">auto</span> IndexBufferPtr = it-&gt;<span class="hljs-built_in">GetRHIIndexBuffer</span>();<br>	RHICmdData[i].VB = VertexBufferPtr.<span class="hljs-built_in">get</span>();<br>	RHICmdData[i].IB = IndexBufferPtr.<span class="hljs-built_in">get</span>();<br>	RHICmdData[i].IndexCountPerInstance = it-&gt;<span class="hljs-built_in">GetIndexCount</span>();<br>	RHICmdData[i].InstanceCount = <span class="hljs-number">1</span>;<br>	RHICmdData[i].StartIndexLocation = <span class="hljs-number">0</span>;<br>	RHICmdData[i].BaseVertexLocation = <span class="hljs-number">0</span>;<br>	RHICmdData[i].StartInstanceLocation = <span class="hljs-number">0</span>;<br>&#125;<br><br>uint32 OutCmdDataSize;<br><span class="hljs-type">void</span>* DataPtrret = <span class="hljs-built_in">RHIGetCommandDataPtr</span>(RHICmdData, OutCmdDataSize);<br></code></pre></td></tr></table></figure>
+<h2 id="Build-Indirect-Shadow-Command"><a href="#Build-Indirect-Shadow-Command" class="headerlink" title="Build Indirect Shadow Command"></a>Build Indirect Shadow Command</h2><p>For each tile, we dispatch 50 threads to process the mesh batch. Each mesh batch has 1 &#x2F; 50 mesh draw commands. Simplified VSMs cull the mesh draw command from the mesh bounding box. We project the box into the shadow view space, and push the command to the output command queue by InterLockedAdd when the mesh is not culled by the tile.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/build_shadow_command.png" srcset="/img/loading.gif" lazyload width="75%" height="75%">
+</p>
+
+<h2 id="GPU-“Pointer”"><a href="#GPU-“Pointer”" class="headerlink" title="GPU “Pointer”"></a>GPU “Pointer”</h2><p>It is necessary to create a bridge between the indirect draw command and the virtual tile table in order to obtain tile information. UE5’s VSMs use InstanceID to index the virtual tile table. The solution requires recording an extra InstanceOffset variable for each mesh, since the StartInstanceLocation cannot be obtained from the vertex shader if the shading language is beyond SM 6.8. In Simplified VSMs, we use <strong>“GPU Pointer”</strong> to point the GPU address of the tile information buffer.</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/gpu_pointer.png" srcset="/img/loading.gif" lazyload width="75%" height="75%">
+</p>
+
+<p>For each tile, simplified VSMs generate information including a view-proj matrix, mip level, and tile indexes. We can calculate the GPU address of each tile with the tile index and the base GPU address recorded on the application side.</p>
+<p>Another problem is that the GPU pointer is 64 bits in size, and HLSL does not support additions of 64 bits. Therefore, it is necessary to implement a custom 64 bit addition for the GPU pointer:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">UINT64</span><br>&#123;<br>    uint LowAddress;<br>    uint HighAddress;<br>&#125;;<br><br><span class="hljs-function">UINT64 <span class="hljs-title">UINT64_ADD</span><span class="hljs-params">(UINT64 InValue , uint InAdd)</span></span><br><span class="hljs-function"></span>&#123;<br>    UINT64 Ret = InValue;<br>    uint C= InValue.LowAddress + InAdd;<br>    <span class="hljs-type">bool</span> OverFlow = (C &lt; InValue.HighAddress) || (C &lt; InAdd);<br>    <span class="hljs-keyword">if</span>(OverFlow)<br>    &#123;<br>        Ret.HighAddress += <span class="hljs-number">1</span>;<br>    &#125;<br>    Ret.LowAddress = C;<br>    <span class="hljs-keyword">return</span> Ret;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>A tile’s GPU address is simply the sum of the tile offset and the base address.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint2 TileIndexMin = <span class="hljs-built_in">uint2</span>( UVMin * MipLevelSize[MipLevel]);<br>uint2 TileIndexMax = <span class="hljs-built_in">uint2</span>( UVMax * MipLevelSize[MipLevel]);<br><br><span class="hljs-keyword">if</span>(TileIndexMin.x &lt;= MipTileIndexXY.x &amp;&amp; TileIndexMin.y &lt;= MipTileIndexXY.y &amp;&amp; TileIndexMax.x &gt;= MipTileIndexXY.x &amp;&amp; TileIndexMax.y &gt;= MipTileIndexXY.y)<br>&#123;<br>    uint PointerOffset = GlobalTileIndex * ( <span class="hljs-number">4</span> * <span class="hljs-number">4</span> * <span class="hljs-number">4</span> + <span class="hljs-number">4</span> * <span class="hljs-number">4</span>); <span class="hljs-comment">// float4x4 + uint4</span><br>    ShadowIndirectCommand InputCommand = InputCommands[Index];<br>    InputCommand.CbGlobalShadowViewProjectAddressVS = <span class="hljs-built_in">UINT64_ADD</span>(GPUStartAddress,PointerOffset);<br>    InputCommand.CbGlobalShadowViewProjectAddressPS = InputCommand.CbGlobalShadowViewProjectAddressVS;<br>    InputCommand.StartInstanceLocation = GlobalTileIndex;<br>    <br>    uint OriginalValue = <span class="hljs-number">0</span>;<br>    <span class="hljs-built_in">InterlockedAdd</span>(CommandCounterBuffer[<span class="hljs-number">0</span>], <span class="hljs-number">1</span>, OriginalValue);<br>    OutputCommands[OriginalValue] = InputCommand;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h1 id="Shadow-Map-Rendering"><a href="#Shadow-Map-Rendering" class="headerlink" title="Shadow Map Rendering"></a>Shadow Map Rendering</h1><p>After all pre-requirements have been met, shadow map rendering is an easy task-just clear the physical tiles that need to be updated and dispatch an indirect draw pass.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs cpp">RHICmdList.<span class="hljs-built_in">RHIExecuteIndirect</span>(VirtualShadowMapResource.RHIShadowCommandSignature.<span class="hljs-built_in">get</span>(), RenderGeos.<span class="hljs-built_in">size</span>() * <span class="hljs-number">16</span>,<br>	VirtualShadowMapResource.VirtualShadowMapCommnadBufferCulled.<span class="hljs-built_in">GetBuffer</span>().<span class="hljs-built_in">get</span>(), <span class="hljs-number">0</span>,<br>	VirtualShadowMapResource.VirtualShadowMapCommnadCounter.<span class="hljs-built_in">GetBuffer</span>().<span class="hljs-built_in">get</span>(), <span class="hljs-number">0</span>);<br></code></pre></td></tr></table></figure>
+<p>By calculating the MIP level based on the world position and calculating the virtual table index based on the GPU pointer, we can determine destination pixel writen position.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint TableIndex = MipLevelOffset[MipLevel] + VirtualTableIndexY * MipLevelSize[MipLevel] + VirtualTableIndexX;<br>uint TileInfo = VirtualShadowMapTileTable[TableIndex];<br>uint PhysicalTileIndexX = (TileInfo &gt;&gt;  <span class="hljs-number">0</span>) &amp; <span class="hljs-number">0xFFFF</span>;<br>uint PhysicalTileIndexY = (TileInfo &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xFFFF</span>;<br><br>float2 IndexXY = <span class="hljs-built_in">uint2</span>(PhysicalTileIndexX, PhysicalTileIndexY) * VSM_TILE_TEX_PHYSICAL_SIZE;<br>float2 WritePos = IndexXY + PositionIn.xy;<br><span class="hljs-type">float</span> FixedPointDepth = <span class="hljs-built_in">float</span>(PositionIn.z) * <span class="hljs-built_in">uint</span>(<span class="hljs-number">0xFFFFFFFF</span>);<br>uint UintDepth = FixedPointDepth;<br><br><span class="hljs-built_in">InterlockedMax</span>(PhysicalShadowDepthTexture[<span class="hljs-built_in">uint2</span>(WritePos)],UintDepth);<br></code></pre></td></tr></table></figure>
+<p>Here is the visualization of the physical shadow depth texture:</p>
+<p align="center">
+    <img src="/resource/vsm_project/image/sub_tile.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<p align="center">
+    <img src="/resource/vsm_project/image/physical_tile_visualize.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<h1 id="Generate-The-Shadow-Mask-Texture"><a href="#Generate-The-Shadow-Mask-Texture" class="headerlink" title="Generate The Shadow Mask Texture"></a>Generate The Shadow Mask Texture</h1><p>By calculating the virtual table index from the pixel position, calculating the physical shadow depth position from the table index, and comparing the result to the pixel’s shadow space depth, we can finally determine whether this pixel is shadowed.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> Total = <span class="hljs-number">0.0f</span>;<br><span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">5</span>; i++)<br>&#123;<br>    Total += <span class="hljs-built_in">ComputeShadowFactor</span>(UVShadowSpace + UVOffset[i] * MipLevelVirtualTextureSize[MipLevel], ObjectShadowDepth,Bias, MipLevel);<br>&#125;<br></code></pre></td></tr></table></figure>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">float</span> <span class="hljs-title">ComputeShadowFactor</span><span class="hljs-params">(float2 UVShadowSpace ,uint ObjectShadowDepth, uint Bias, uint MipLevel)</span></span><br><span class="hljs-function"></span>&#123;<br>    uint2 VSMTileIndex = <span class="hljs-built_in">uint2</span>(UVShadowSpace * MipLevelSize[MipLevel]);<br>    <span class="hljs-type">int</span> TableIndex = MipLevelOffset[MipLevel] + VSMTileIndex.y * MipLevelSize[MipLevel] + VSMTileIndex.x;<br>    uint TileInfo = VirtualShadowMapTileTable[TableIndex];<br>    uint PhysicalTileIndexX = (TileInfo &gt;&gt;  <span class="hljs-number">0</span>) &amp; <span class="hljs-number">0xFFFF</span>;<br>    uint PhysicalTileIndexY = (TileInfo &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xFFFF</span>;<br><br>    float2 IndexXY = <span class="hljs-built_in">uint2</span>(PhysicalTileIndexX, PhysicalTileIndexY) * VSM_TILE_TEX_PHYSICAL_SIZE;<br>    float2 SubTileIndex = (<span class="hljs-built_in">float2</span>(UVShadowSpace * MipLevelSize[MipLevel]) - VSMTileIndex) * VSM_TILE_TEX_PHYSICAL_SIZE;<br>    float2 ReadPos = IndexXY + SubTileIndex;<br><br>    uint ShadowDepth = PhysicalShadowDepthTexture[<span class="hljs-built_in">uint2</span>(ReadPos)].x;<br><br>    <span class="hljs-keyword">if</span>((ObjectShadowDepth + Bias ) &lt; ShadowDepth) <br>    &#123;<br>        <span class="hljs-keyword">return</span> <span class="hljs-number">1.0f</span>;<br>    &#125;<br><br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0.0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p align="center">
+    <img src="/resource/vsm_project/image/scene_depth.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<p align="center">
+    <img src="/resource/vsm_project/image/shadow_mask.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<p align="center">
+    <img src="/resource/vsm_project/gif/final_result_visualize.gif" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<p><a target="_blank" rel="noopener" href="https://github.com/ShawnTSH1229/XEngine"><u><strong>source code can be found here.</strong></u></a></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/My-Projects/" class="category-chain-item">My Projects</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Virtual Shadow Map In XEngine</div>
+      <div>http://example.com/2024/05/01/Virtual-Shadow-Map-In-XEngine/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Shawn Tang</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>May 1, 2024</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2024/05/05/Volume-Rendering-In-Offline-Rendering/" title="Volume Rendering In Offline Rendering">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Volume Rendering In Offline Rendering</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>Table of Contents</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>

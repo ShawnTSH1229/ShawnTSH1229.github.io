@@ -1,0 +1,859 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Shawn Tang">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="IntroductionFast Ray TracingSimLumen uses signed distance fields to trace the ray with the mesh. SDF is a uniform mesh representation. What’s more, it is differentiable, which means we can calculate t">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Simplified Lumen GI In MiniEngine">
+<meta property="og:url" content="http://example.com/2024/05/18/Simplified-Lumen-GI-In-MiniEngine/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="IntroductionFast Ray TracingSimLumen uses signed distance fields to trace the ray with the mesh. SDF is a uniform mesh representation. What’s more, it is differentiable, which means we can calculate t">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/build_mesh_sdf.drawio.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/build_scene_mesh_sdf.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/sdf_normal.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/sdf_normal_visualize.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/mesh_card.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/mat_attributes_alebedo.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/mat_attributes_normal.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scene_attributes_alebedo.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scene_attributes_normal.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/surface_cache_lighting_flow.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scache_direct_lighting.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/voxel_vis_info.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/voxel_lighting_visualize.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scache_indirect_lighting.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scache_radiosity_trace_probe.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/radiosity_probe_ray.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scache_radiosity_atlas.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scache_radiosity_vis.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/scache_radiosity_atlas_filtered.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/indirect_lighting_vis.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/combined_lighting_vis.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/is_vs_no_is.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/brdf_depth_weight.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/acc_brdf_pdf.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/brdf_pdf_vis.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/ss_light_is.png">
+<meta property="og:image" content="http://example.com/resource/simlumen/image/lighting_is_pdf_vis.png">
+<meta property="article:published_time" content="2024-05-18T05:47:44.000Z">
+<meta property="article:modified_time" content="2024-06-08T14:46:32.734Z">
+<meta property="article:author" content="Shawn Tang">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/resource/simlumen/image/build_mesh_sdf.drawio.png">
+  
+  
+  
+  <title>Simplified Lumen GI In MiniEngine - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.7","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":10},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>ShawnTSH1229</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>Home</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>Archives</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>Categories</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>About</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Simplified Lumen GI In MiniEngine"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-05-18 13:47" pubdate>
+          May 18, 2024 pm
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          1.4k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          12 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">Simplified Lumen GI In MiniEngine</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h1><h1 id="Fast-Ray-Tracing"><a href="#Fast-Ray-Tracing" class="headerlink" title="Fast Ray Tracing"></a>Fast Ray Tracing</h1><p>SimLumen uses signed distance fields to trace the ray with the mesh. SDF is a uniform mesh representation. What’s more, it is differentiable, which means we can calculate the normal at the ray hit position. SimLumen precomputes the mesh SDF and the scene global SDF. GI nearby camera employs mesh SDF to accelerate ray-mesh intersection. Global SDF is used in distant GI and surface cache indirect lighting calculation.</p>
+<h2 id="Build-Mesh-SDF-Offline"><a href="#Build-Mesh-SDF-Offline" class="headerlink" title="Build Mesh SDF Offline"></a>Build Mesh SDF Offline</h2><p>The mesh SDF volume has different size based on the mesh bounding box. To pack these mesh SDF into a single 3D texture, we split the volume into bricks. Brick size is the same for mesh SDFs.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/build_mesh_sdf.drawio.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>SimLumen use Embree to calculate the mesh SDF, which is the same as Unreal does. For each voxel, we traces 512 ray samples to intersect with the mesh and finds the closest hit position between these samples. A voxel is considered within the mesh if more than 25% of the 512 ray samples hit the triangle backface. We take the negative value of the closest hit distance.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (hit_num &gt; <span class="hljs-number">0</span> &amp;&amp; hit_back_num &gt; <span class="hljs-number">0.25f</span> * samples0.<span class="hljs-built_in">size</span>())<br>&#123;<br>	min_distance *= <span class="hljs-number">-1</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Then, scale and quantify the closest distance to uint8 format, and store the result into brick sdf data.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> scaled_min_distance = min_distance / max_distance;<span class="hljs-comment">// -1-&gt;1</span><br><span class="hljs-type">float</span> clamed_min_distance = Math::<span class="hljs-built_in">Clamp</span>(scaled_min_distance * <span class="hljs-number">0.5</span> + <span class="hljs-number">0.5</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>);<span class="hljs-comment">//0 - 1</span><br><span class="hljs-type">uint8_t</span> normalized_min_distance = <span class="hljs-built_in">uint8_t</span>(<span class="hljs-built_in">int32_t</span>(clamed_min_distance * <span class="hljs-number">255.0f</span> + <span class="hljs-number">0.5</span>));<br><br><span class="hljs-type">int</span> brick_index = brick_index_z * volume_brick_num_y * volume_brick_num_x + brick_index_y * volume_brick_num_x + brick_index_x;<br>volumeData.distance_filed_volume[brick_index].m_brick_data[brick_vol_idx_x][brick_vol_idx_y][brick_vol_idx_z] = normalized_min_distance;<br></code></pre></td></tr></table></figure>
+
+<h2 id="Trace-Mesh-SDF"><a href="#Trace-Mesh-SDF" class="headerlink" title="Trace Mesh SDF"></a>Trace Mesh SDF</h2><p>At runtime, we copy and upload each mesh’s brick texture to the global mesh SDF brick texture and record the brick texture offset. We can find any SDF value at a given position in the mesh volume for each mesh by global brick texture and brick offset.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/build_scene_mesh_sdf.png" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+<p>The GI nearby camera uses mesh SDF to trace rays. In this case, we calculate the possible meshes that can be intersected in the ray tracing direction. Then, we perform SDF tracing for each mesh and find the closest hit position.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp">[loop]<br><span class="hljs-keyword">for</span>(uint mesh_idx = <span class="hljs-number">0</span>; mesh_idx &lt; scene_mesh_sdf_num; mesh_idx++)<br>&#123;<br>    <span class="hljs-built_in">RayTraceSingleMeshSDF</span>(world_position, ray_direction, <span class="hljs-number">1000</span>, mesh_idx, trace_result);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>At first, SimNanite transform the ray from the world position into sdf volume position. If the ray intersects the volume bound box, we trace the ray from the intersection position. When the sphere trace step is over 64 or the closest distance in the sample position is closer than on voxel size, it means that we hit the mesh surface and should stop the sphere trace.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float2 volume_space_intersection_times = <span class="hljs-built_in">LineBoxIntersect</span>(volume_ray_start, volume_ray_end, volume_min_pos, volume_max_pos);<br><br>......<br>volume_space_intersection_times *= volume_max_trace_distance;<br><br><span class="hljs-keyword">if</span>((volume_space_intersection_times.x &lt; volume_space_intersection_times.y) &amp;&amp; (volume_space_intersection_times.x &lt; trace_result.hit_distance))<br>&#123;<br>    <span class="hljs-type">float</span> <span class="hljs-type">sample_ray_t</span> = volume_space_intersection_times.x;<br><br>    uint max_step = <span class="hljs-number">64</span>;<br>    <span class="hljs-type">bool</span> bhit = <span class="hljs-literal">false</span>;<br>    uint step_idx = <span class="hljs-number">0</span>;<br><br>    [loop]<br>    <span class="hljs-keyword">for</span>( ; step_idx &lt; max_step; step_idx++)<br>    &#123;<br>        float3 sample_volume_position = volume_ray_start + volume_ray_direction * <span class="hljs-type">sample_ray_t</span>;<br>        <span class="hljs-type">float</span> distance_filed = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(sample_volume_position, mesh_sdf_info);<br>        <span class="hljs-type">float</span> min_hit_distance = mesh_sdf_info.volume_brick_size * <span class="hljs-number">0.125</span> * <span class="hljs-number">1.0</span>; <span class="hljs-comment">// 1 voxel</span><br><br>        <span class="hljs-keyword">if</span>(distance_filed &lt; min_hit_distance)<br>        &#123;<br>            bhit = <span class="hljs-literal">true</span>;<br>            <span class="hljs-type">sample_ray_t</span> = <span class="hljs-built_in">clamp</span>(<span class="hljs-type">sample_ray_t</span> + distance_filed - min_hit_distance, volume_space_intersection_times.x, volume_space_intersection_times.y);<br>            <span class="hljs-keyword">break</span>;<br>        &#125;<br><br>        <span class="hljs-type">sample_ray_t</span> += distance_filed;<br><br>        <span class="hljs-keyword">if</span>(<span class="hljs-type">sample_ray_t</span> &gt; volume_space_intersection_times.y + min_hit_distance)<br>        &#123;<br>            <span class="hljs-keyword">break</span>;<br>        &#125;<br>    &#125;<br><br>    <span class="hljs-keyword">if</span>(step_idx == max_step)<br>    &#123;<br>        bhit = <span class="hljs-literal">true</span>;<br>    &#125;<br><br>    <span class="hljs-keyword">if</span>(bhit &amp;&amp; <span class="hljs-type">sample_ray_t</span> &lt; trace_result.hit_distance)<br>    &#123;<br>        trace_result.is_hit = <span class="hljs-literal">true</span>;   <br>        trace_result.hit_distance = <span class="hljs-type">sample_ray_t</span>;<br>        trace_result.hit_mesh_index = object_index;<br>        trace_result.hit_mesh_sdf_card_index = mesh_sdf_info.mesh_card_start_index;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h2 id="SDF-Normal"><a href="#SDF-Normal" class="headerlink" title="SDF Normal"></a>SDF Normal</h2><p>We can calculate the normal at any sample position by calculating the closest distance gradient of the voxels around it.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/sdf_normal.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">float3 <span class="hljs-title">CalculateMeshSDFGradient</span><span class="hljs-params">(float3 sample_volume_position, SMeshSDFInfo mesh_sdf_info)</span></span><br><span class="hljs-function"></span>&#123;<br>    <span class="hljs-type">float</span> voxel_offset = mesh_sdf_info.volume_brick_size * <span class="hljs-number">0.125</span>;<br><br>    <span class="hljs-type">float</span> R = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(<span class="hljs-built_in">float3</span>(sample_volume_position.x + voxel_offset, sample_volume_position.y, sample_volume_position.z),mesh_sdf_info);<br>    <span class="hljs-type">float</span> L = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(<span class="hljs-built_in">float3</span>(sample_volume_position.x - voxel_offset, sample_volume_position.y, sample_volume_position.z),mesh_sdf_info);<br><br>    <span class="hljs-type">float</span> F = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(<span class="hljs-built_in">float3</span>(sample_volume_position.x, sample_volume_position.y + voxel_offset, sample_volume_position.z),mesh_sdf_info);<br>    <span class="hljs-type">float</span> B = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(<span class="hljs-built_in">float3</span>(sample_volume_position.x, sample_volume_position.y - voxel_offset, sample_volume_position.z),mesh_sdf_info);<br><br>    <span class="hljs-type">float</span> U = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(<span class="hljs-built_in">float3</span>(sample_volume_position.x, sample_volume_position.y, sample_volume_position.z + voxel_offset),mesh_sdf_info);<br>    <span class="hljs-type">float</span> D = <span class="hljs-built_in">SampleDistanceFieldBrickTexture</span>(<span class="hljs-built_in">float3</span>(sample_volume_position.x, sample_volume_position.y, sample_volume_position.z - voxel_offset),mesh_sdf_info);<br><br>    float3 gradiance = <span class="hljs-built_in">float3</span>(R - L, F - B, U - D);<br>	<span class="hljs-keyword">return</span> gradiance;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Below is a SDF ray-tracing visualization.  In this example, the ray-tracing direction for each cube is determined by its offset from the center cube. RGB colors represent the hit position’s normal. X is represented by red color, Y by green color, and Z by blue color.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/sdf_normal_visualize.png" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+
+<h2 id="Global-SDF"><a href="#Global-SDF" class="headerlink" title="Global SDF"></a>Global SDF</h2><p>The global signed distance field is a low resolution SDF of the whole scene. We precompute the global SDF offline. Global SDF differs from scene mesh SDF in that the scene mesh SDF is stored in brick textures with fixed z-dimensions, whereas global SDF is stored in a size-scalable volume texture based on the scene bounding box.</p>
+<h1 id="Surface-Cache"><a href="#Surface-Cache" class="headerlink" title="Surface Cache"></a>Surface Cache</h1><p>The mesh SDF trace allows us to determine the hit position of a ray, however it does not provide information regarding the material attributes (albedo, normal, etc.) at the hit position. Unreal Lumen uses mesh cards to capture these material attributs runtime. </p>
+<p>Mesh cars describe the material attributes capture infomation. It can be generated offline. However, material attributes capture must be performed at runtime, since occlusion between scene meshes can’t be determined offline.</p>
+<h2 id="SimLumen-Card-Generation"><a href="#SimLumen-Card-Generation" class="headerlink" title="SimLumen Card Generation"></a>SimLumen Card Generation</h2><p><strong>In Unreal, a mesh may have many mesh cards based on mesh complexity.</strong> SimLumen simplifies mesh card generation: generates a fixed number mesh card (6 direction) based on the mesh bounding box.  </p>
+<p align="center">
+    <img src="/resource/simlumen/image/mesh_card.png" srcset="/img/loading.gif" lazyload width="40%" height="40%">
+</p>
+
+<p>We can calculate the capture position and direction from the bounding box directly. The mesh card depth is determined by software raytracing. For each texel in the mesh card, we trace a ray in the mesh card direction, calculate the ray-mesh intersection and find the furthest intersection distance.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> max_depth = <span class="hljs-number">2.0</span>;<br><br><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> x_idx = <span class="hljs-number">0</span>; x_idx &lt; <span class="hljs-number">128</span>; x_idx++)<br>&#123;<br>	<span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> y_idx = <span class="hljs-number">0</span>; y_idx &lt; <span class="hljs-number">128</span>; y_idx++)<br>	&#123;<br>		XMFLOAT3 trace_position = palne_start_trace_pos;<br>		<span class="hljs-built_in">AddFloatComponent</span>(trace_position, dimension_x, (x_idx + <span class="hljs-number">0.5</span>) * x_stride);<br>		<span class="hljs-built_in">AddFloatComponent</span>(trace_position, dimension_y, (y_idx + <span class="hljs-number">0.5</span>) * y_stride);<br><br>		RTCRayHit embree_ray;<br>		......<br>		<span class="hljs-built_in">rtcIntersect1</span>(m_rt_scene, &amp;embree_ray, &amp;args);<br><br>		<span class="hljs-keyword">if</span> ((embree_ray.ray.tfar != <span class="hljs-number">1e30</span>f) &amp;&amp; embree_ray.hit.geomID != RTC_INVALID_GEOMETRY_ID &amp;&amp; embree_ray.hit.primID != RTC_INVALID_GEOMETRY_ID)<br>		&#123;<br>			<span class="hljs-function">Math::Vector3 <span class="hljs-title">hit_normal</span><span class="hljs-params">(embree_ray.hit.Ng_x, embree_ray.hit.Ng_y, embree_ray.hit.Ng_z)</span></span>;<br>			hit_normal = Math::<span class="hljs-built_in">Normalize</span>(hit_normal);<br>			<span class="hljs-type">float</span> dot_value = Math::<span class="hljs-built_in">Dot</span>(trace_dir, hit_normal);<br><br>			<span class="hljs-keyword">if</span> (dot_value &lt; <span class="hljs-number">0</span> &amp;&amp; max_depth &lt; embree_ray.ray.tfar)<br>			&#123;<br>				max_depth = embree_ray.ray.tfar;<br>			&#125;<br>		&#125;<br>	&#125;<br>&#125;<br><br>XMFLOAT3 points[<span class="hljs-number">4</span>];<br>points[<span class="hljs-number">0</span>] = palne_start_trace_pos;<br>points[<span class="hljs-number">1</span>] = plane_end_trace_pos;<br><br>points[<span class="hljs-number">2</span>] = palne_start_trace_pos;<br>points[<span class="hljs-number">2</span>].x += trace_dir.x * max_depth;<br>points[<span class="hljs-number">2</span>].y += trace_dir.y * max_depth;<br>points[<span class="hljs-number">2</span>].z += trace_dir.z * max_depth;<br><br>points[<span class="hljs-number">3</span>] = plane_end_trace_pos;<br>points[<span class="hljs-number">3</span>].x += trace_dir.x * max_depth;<br>points[<span class="hljs-number">3</span>].y += trace_dir.y * max_depth;<br>points[<span class="hljs-number">3</span>].z += trace_dir.z * max_depth;<br><br>Math::BoundingBox RetBound;<br>Math::BoundingBox::<span class="hljs-built_in">CreateFromPoints</span>(RetBound, <span class="hljs-number">4</span>, points, <span class="hljs-built_in">sizeof</span>(XMFLOAT3));<br><span class="hljs-keyword">return</span> RetBound;<br></code></pre></td></tr></table></figure>
+
+<h2 id="Material-Attributes-Capture"><a href="#Material-Attributes-Capture" class="headerlink" title="Material Attributes Capture"></a>Material Attributes Capture</h2><p>SimLumen captures the mesh card at runtime. After the mesh card capture is completed, we copy these mesh card attribute textures into a global card atlas.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/mat_attributes_alebedo.png" srcset="/img/loading.gif" lazyload width="35%" height="35%">
+</p>
+<p align="center">
+    <img src="/resource/simlumen/image/mat_attributes_normal.png" srcset="/img/loading.gif" lazyload width="35%" height="35%">
+</p>
+
+<p>Below is a visualization of the mesh card’s normal and albedo for a scene:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/scene_attributes_alebedo.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+<p align="center">
+    <img src="/resource/simlumen/image/scene_attributes_normal.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<h2 id="Surface-Cache-Lighting"><a href="#Surface-Cache-Lighting" class="headerlink" title="Surface Cache Lighting"></a>Surface Cache Lighting</h2><p>Unreal Lumen has implemented an <strong>infinity bounce</strong> lighting by the combination of the surface cache lighting and voxel lighting. Here is the surface cache flow graph:</p>
+<p>Step 1: Calculate direct lighting with surface cache attributes (albedo &#x2F; normal).</p>
+<p>Step 2: Combine direct lighting and indirect lighting together. In the first frame, direct lighting results in black, since no light has been injected into the scene voxel.</p>
+<p>Step 3: Inject the combined light into the scene voxel.</p>
+<p>Step 4: Calculate indirect lighting used in the next frame.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/surface_cache_lighting_flow.png" srcset="/img/loading.gif" lazyload width="75%" height="75%">
+</p>
+
+<h2 id="Surface-Cache-Direct-Lighting"><a href="#Surface-Cache-Direct-Lighting" class="headerlink" title="Surface Cache Direct Lighting"></a>Surface Cache Direct Lighting</h2><p>The world position of a mesh card pixel is calculated by the card rotation matrix and card depth. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float3 local_position;<br>local_position.xy = (card_uv * (<span class="hljs-number">2.0f</span>) - <span class="hljs-number">1.0f</span>) * card_info.rotated_extents.xy;<br>local_position.z = -(depth * <span class="hljs-number">2.0</span> - <span class="hljs-number">1.0f</span>)  * card_info.rotated_extents.z;<br>float3 rotate_back_pos = <span class="hljs-built_in">mul</span>((float3x3)card_info.rotate_back_matrix, local_position);<br>rotate_back_pos += card_info.bound_center;;<br></code></pre></td></tr></table></figure>
+
+<p>After that, SimLumen transforms the world position into shadow space in order to determine whether the pixel is inside or outside the shadow.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> shadow = <span class="hljs-number">0.0</span>;<br>&#123;<br>    float4 shadow_screen_pos = <span class="hljs-built_in">mul</span>(ShadowViewProjMatrix, <span class="hljs-built_in">float4</span>(card_data.world_position,<span class="hljs-number">1.0</span>));<br>    float2 shadow_uv = shadow_screen_pos.xy;<br>    shadow_uv = shadow_uv * <span class="hljs-built_in">float2</span>(<span class="hljs-number">0.5</span>, <span class="hljs-number">-0.5</span>) + <span class="hljs-built_in">float2</span>(<span class="hljs-number">0.5</span>, <span class="hljs-number">0.5</span>);<br>    float2 shadow_pixel_pos = shadow_uv.xy * <span class="hljs-number">2048</span>;<br><br>    <span class="hljs-type">float</span> shadow_depth_value = shadow_depth_buffer.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(shadow_pixel_pos.xy,<span class="hljs-number">0</span>)).x;;<br>    shadow = ((shadow_screen_pos.z + <span class="hljs-number">0.0005</span>) &lt; shadow_depth_value ) ? <span class="hljs-number">0.0</span> :<span class="hljs-number">1.0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>We calculate the direct lighting for each light source and accumulate them if the scene has many light sources.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float3 directional_lighting = <span class="hljs-built_in">float3</span>(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>);<br>&#123;<br>    float3 light_direction = SunDirection;<br>    <span class="hljs-type">float</span> NoL = <span class="hljs-built_in">saturate</span>(<span class="hljs-built_in">dot</span>(light_direction, card_data.world_normal));<br>    directional_lighting = SunIntensity * NoL * card_data.albedo * shadow;<br>&#125;<br><br>float3 point_lighting = <span class="hljs-built_in">float3</span>(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>);<br>&#123;<br>    float3 point_light_direction = point_light_world_pos - card_data.world_position;<br>    float3 light_dist = <span class="hljs-built_in">length</span>(point_light_direction);<br>    <span class="hljs-type">float</span> attenuation = <span class="hljs-built_in">saturate</span>((point_light_radius - light_dist) / point_light_radius);   <br>    <span class="hljs-type">float</span> NoL = <span class="hljs-built_in">saturate</span>(<span class="hljs-built_in">dot</span>(<span class="hljs-built_in">normalize</span>(point_light_direction), card_data.world_normal));<br>    point_lighting = NoL * card_data.albedo * attenuation * attenuation;<br>&#125;<br>surface_cache_direct_lighting[<span class="hljs-built_in">int2</span>(pixel_pos.xy)] = <span class="hljs-built_in">float4</span>(point_lighting + directional_lighting, <span class="hljs-number">1.0</span>);<br></code></pre></td></tr></table></figure>
+
+<p>surface cache direct lighting visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/scache_direct_lighting.png" srcset="/img/loading.gif" lazyload width="64%" height="64%">
+</p>
+
+<h2 id="Voxel-Visibility-Buffer"><a href="#Voxel-Visibility-Buffer" class="headerlink" title="Voxel Visibility Buffer"></a>Voxel Visibility Buffer</h2><p>Voxel visibility buffer stores the hit mesh index and hit distance in x&#x2F;y&#x2F;z direction. As a persistent data, it is only updated when the meshes’ positions change. SDF traces are performed for each voxel along the xyz direction for meshes that are possibly intersected with its center. If the ray from the voxel center along the x&#x2F;y&#x2F;z direction hit a mesh, we store the mesh index in the voxel. This will be used in the next light injection pass.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/voxel_vis_info.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h2 id="Lighting-Injection"><a href="#Lighting-Injection" class="headerlink" title="Lighting Injection"></a>Lighting Injection</h2><p>We can obtain the intersection mesh and intersection position directly from the voxel visibility buffer. After that, we transform the hit world position into mesh card space location and calculate the final light atlas UV. The final light is the combination of the direct light and indirect light. However, the indirect lighting remains black until the second frame as it is dependent on voxel illumination.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint direction_idx = group_idx.y;<br>SVoxelVisibilityInfo voxel_vis_info = scene_voxel_visibility_buffer[voxel_index_1d];<br><span class="hljs-type">int</span> mesh_index = voxel_vis_info.voxel_vis_info[direction_idx].mesh_index;<br><span class="hljs-keyword">if</span>(mesh_index != <span class="hljs-number">-1</span>)<br>&#123;<br>    SMeshSDFInfo mesh_info = scene_sdf_infos[mesh_index];<br>    uint card_index = direction_idx; <br>    uint global_card_index = mesh_info.mesh_card_start_index + card_index;<br><br>    SCardInfo card_info = scene_card_infos[global_card_index];<br><br>    <span class="hljs-type">float</span> hit_distance = voxel_vis_info.voxel_vis_info[direction_idx].hit_distance;<br>    float3 light_direction = voxel_light_direction[direction_idx];<br>    float3 hit_world_pos = voxel_world_pos + light_direction * hit_distance;<br><br>    float2 uv = <span class="hljs-built_in">GetCardUVFromWorldPos</span>(card_info, hit_world_pos);<br><br>    uint2 card_index_xy = <span class="hljs-built_in">uint2</span>((global_card_index % card_num_xy), (global_card_index / card_num_xy));<br>    uint2 pixel_pos = card_index_xy * <span class="hljs-number">128</span> + <span class="hljs-built_in">float2</span>(uv * <span class="hljs-number">128</span>);<br>    pixel_pos.y = SURFACE_CACHE_TEX_SIZE - pixel_pos.y;<br>    float3 final_lighting = final_lighting_tex.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(pixel_pos,<span class="hljs-number">0</span>)).xyz;<br><br>    scene_voxel_lighting[voxel_index_1d].final_lighting[direction_idx] = final_lighting;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>voxel lighting visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/voxel_lighting_visualize.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h2 id="Surface-Cache-Indirect-Lighting"><a href="#Surface-Cache-Indirect-Lighting" class="headerlink" title="Surface Cache Indirect Lighting"></a>Surface Cache Indirect Lighting</h2><p>The first step is to calculate the radiance of the current surface cache pixel using global SDF, filter, and store the radiance in a radiance atlas. We then convert radiance into SH, which allows us to perform probe interpolation to reduce lighting noise.<br>The irradiance in a unit area is the integral of the f(x) over the half sphere:</p>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false">(</mo><mi>p</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mo>∫</mo><mi mathvariant="normal">Ω</mi></msub><mi>L</mi><mo stretchy="false">(</mo><mi>p</mi><mo separator="true">,</mo><mi>i</mi><mo stretchy="false">)</mo><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mi>n</mi><mo>⋅</mo><mi>i</mi><mo stretchy="false">)</mo><mi mathvariant="normal">d</mi><mi>i</mi></mrow><annotation encoding="application/x-tex">E(p) = \int_{\Omega}L(p,i)max(0,n\cdot i )\mathrm{d}i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.1608em;vertical-align:-0.3558em;"></span><span class="mop"><span class="mop op-symbol small-op" style="margin-right:0.19445em;position:relative;top:-0.0006em;">∫</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1225em;"><span style="top:-2.3442em;margin-left:-0.1945em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">Ω</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3558em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mord mathnormal">ma</span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mord mathrm">d</span><span class="mord mathnormal">i</span></span></span></span><br>
+<p>F(x) can be split into two parts: the lighting function and the diffuse transfer function:</p>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false">(</mo><mi>p</mi><mo stretchy="false">)</mo><mo>=</mo><msub><mo>∫</mo><mi mathvariant="normal">Ω</mi></msub><mi>L</mi><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo><mo>⋅</mo><mi>H</mi><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo><mi mathvariant="normal">d</mi><mi>i</mi></mrow><annotation encoding="application/x-tex">E(p) = \int_{\Omega}L(i)\cdot H(i)\mathrm{d}i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.1608em;vertical-align:-0.3558em;"></span><span class="mop"><span class="mop op-symbol small-op" style="margin-right:0.19445em;position:relative;top:-0.0006em;">∫</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1225em;"><span style="top:-2.3442em;margin-left:-0.1945em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">Ω</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3558em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mord mathrm">d</span><span class="mord mathnormal">i</span></span></span></span><br>
+<p>L(i) is reconstructed from the spherical harmonic by SH factors and biasis function:</p>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo><mo>≈</mo><mi mathvariant="normal">Σ</mi><msub><mi>l</mi><mi>k</mi></msub><msub><mi>B</mi><mi>k</mi></msub><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L(i) \approx \Sigma l_{k}B_{k}(i) </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≈</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord">Σ</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0197em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0502em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span></span></span></span><br>
+<p>We project the radiance into the basis function to get the SH factors in Convert SH pass:</p>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>l</mi><mi>k</mi></msub><mo>=</mo><msub><mo>∫</mo><mi mathvariant="normal">Ω</mi></msub><mi>L</mi><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo><mi>B</mi><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo><mi mathvariant="normal">d</mi><mi>i</mi></mrow><annotation encoding="application/x-tex">l_{k} = \int_{\Omega}L(i)B(i)\mathrm{d}i</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0197em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.1608em;vertical-align:-0.3558em;"></span><span class="mop"><span class="mop op-symbol small-op" style="margin-right:0.19445em;position:relative;top:-0.0006em;">∫</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1225em;"><span style="top:-2.3442em;margin-left:-0.1945em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">Ω</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.3558em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">L</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right:0.05017em;">B</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mord mathrm">d</span><span class="mord mathnormal">i</span></span></span></span><br>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">irradiance_sh = <span class="hljs-built_in">AddSH</span>(irradiance_sh, <span class="hljs-built_in">MulSH</span>(<span class="hljs-built_in">SHBasisFunction</span>(world_ray), trace_irradiance / pdf));<br></code></pre></td></tr></table></figure>
+
+<p>If we project both the illumination and transfer functions into SH coefficients then orthogonality guarantees that the integral of the function’s products is the same as the dot product of their coefficients:</p>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo stretchy="false">(</mo><mi>p</mi><mo stretchy="false">)</mo><mo>=</mo><msubsup><mi mathvariant="normal">Σ</mi><mrow><mi>k</mi><mo>=</mo><mn>0</mn></mrow><msup><mi>n</mi><mn>2</mn></msup></msubsup><msub><mi>l</mi><mi>k</mi></msub><msub><mi>h</mi><mi>k</mi></msub></mrow><annotation encoding="application/x-tex">E(p) = \Sigma_{k=0}^{n^{2}} l_{k}h_{k}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.05764em;">E</span><span class="mopen">(</span><span class="mord mathnormal">p</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1.27em;vertical-align:-0.2831em;"></span><span class="mord"><span class="mord">Σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9869em;"><span style="top:-2.4169em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span><span class="mrel mtight">=</span><span class="mord mtight">0</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">n</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913em;"><span style="top:-2.931em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2831em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:-0.0197em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">h</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span><br>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo><mo>=</mo><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mi>n</mi><mo>⋅</mo><mi>l</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">H(i) = max(0,n\cdot l) </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.08125em;">H</span><span class="mopen">(</span><span class="mord mathnormal">i</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">ma</span><span class="mord mathnormal">x</span><span class="mopen">(</span><span class="mord">0</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord mathnormal">n</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">⋅</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mclose">)</span></span></span></span><br>
+<p>The irradiance of a pixel is calculated in the integrate pass:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">FTwoBandSHVector diffuse_transfer_sh = <span class="hljs-built_in">CalcDiffuseTransferSH</span>(card_data.world_normal, <span class="hljs-number">1.0f</span>);<br>float3 texel_irradiance = <span class="hljs-built_in">max</span>(<span class="hljs-built_in">float3</span>(<span class="hljs-number">0.0f</span>, <span class="hljs-number">0.0f</span>, <span class="hljs-number">0.0f</span>), <span class="hljs-built_in">DotSH</span>(irradiance_sh, diffuse_transfer_sh));<br></code></pre></td></tr></table></figure>
+
+
+<p align="center">
+    <img src="/resource/simlumen/image/scache_indirect_lighting.png" srcset="/img/loading.gif" lazyload width="40%" height="40%">
+</p>
+
+<h3 id="Radiosity-Trace"><a href="#Radiosity-Trace" class="headerlink" title="Radiosity Trace"></a>Radiosity Trace</h3><p>SimLumen split the atlas space surface cache into 8x8 tiles. Each tile place 2x2 probes. </p>
+<p align="center">
+    <img src="/resource/simlumen/image/scache_radiosity_trace_probe.png" srcset="/img/loading.gif" lazyload width="30%" height="30%">
+</p>
+
+<p>Each probe performs 16 ray tracings in the hemisphere direction.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/radiosity_probe_ray.png" srcset="/img/loading.gif" lazyload width="30%" height="30%">
+</p>
+
+<p>To accelerate the speed of convergence of the integrate, the probe center is jittered according to the tile index and the frame index.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint2 probe_jitter = <span class="hljs-built_in">GetProbeJitter</span>(indirect_lighting_temporal_index);<br></code></pre></td></tr></table></figure>
+
+<p>For each direction, we trace a ray from the probe center and find the world space hit position by global SDF.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float3 world_ray;<br><span class="hljs-type">float</span> pdf;<br><span class="hljs-built_in">GetRadiosityRay</span>(tile_idx, sub_tile_pos, card_data.world_normal, world_ray, pdf);<br><br>SGloablSDFHitResult hit_result = (SGloablSDFHitResult)<span class="hljs-number">0</span>;<br><span class="hljs-built_in">TraceGlobalSDF</span>(card_data.world_position + card_data.world_normal * gloabl_sdf_voxel_size * <span class="hljs-number">2.0</span>, world_ray, hit_result);<br></code></pre></td></tr></table></figure>
+<p>Finally, fetch the voxel lighting at the hit position and accumulate the weighted lighting results in the x&#x2F;y&#x2F;z direction.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint voxel_index_1d = <span class="hljs-built_in">GetVoxelIndexFromWorldPos</span>(hit_world_position);<br><br>SVoxelLighting voxel_lighting = scene_voxel_lighting[voxel_index_1d];<br>float3 voxel_lighting_x = voxel_lighting.final_lighting[x_dir];<br>float3 voxel_lighting_y = voxel_lighting.final_lighting[y_dir];<br>float3 voxel_lighting_z = voxel_lighting.final_lighting[z_dir];<br><br><span class="hljs-type">float</span> weight_x = <span class="hljs-built_in">saturate</span>(<span class="hljs-built_in">dot</span>(world_ray, voxel_light_direction[x_dir]));<br><span class="hljs-type">float</span> weight_y = <span class="hljs-built_in">saturate</span>(<span class="hljs-built_in">dot</span>(world_ray, voxel_light_direction[y_dir]));<br><span class="hljs-type">float</span> weight_z = <span class="hljs-built_in">saturate</span>(<span class="hljs-built_in">dot</span>(world_ray, voxel_light_direction[z_dir]));<br><br>radiance += voxel_lighting_x * weight_x;<br>radiance += voxel_lighting_y * weight_y;<br>radiance += voxel_lighting_z * weight_z;<br><br>radiance /= (weight_x + weight_y + weight_z);<br></code></pre></td></tr></table></figure>
+
+<p>radiance trace result:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/scache_radiosity_atlas.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>radiance trace visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/scache_radiosity_vis.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h3 id="Radiosity-Filter"><a href="#Radiosity-Filter" class="headerlink" title="Radiosity Filter"></a>Radiosity Filter</h3><p>In this pass, SimLumen filters the radiance atlas to reduce the noise. We sample the radiance around the current texel and accumulate weighted samples. Radiance sample weights in Unreal Lumen are dependent upon a number of factors, including the texel’s World space plane and the distance between the planes.</p>
+<p>filtered radiance atlas:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/scache_radiosity_atlas_filtered.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h3 id="Convert-To-SH"><a href="#Convert-To-SH" class="headerlink" title="Convert To SH"></a>Convert To SH</h3><p>Radiance atlas results are still noisy after filtering, since we only have 16 samples per probe. We solve this problem by converting the tile radiance into two bands SH, which allows us to interpolate the probes more easily. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">for</span>(uint trace_idx_x = <span class="hljs-number">0</span>; trace_idx_x &lt; SURFACE_CACHE_PROBE_TEXELS_SIZE; trace_idx_x++)<br>&#123;<br>    <span class="hljs-keyword">for</span>(uint trace_idx_y = <span class="hljs-number">0</span>; trace_idx_y &lt; SURFACE_CACHE_PROBE_TEXELS_SIZE; trace_idx_y++)<br>    &#123;<br>        ......<br>        float3 trace_irradiance = trace_radiance_atlas.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(pixel_atlas_pos.xy, <span class="hljs-number">0</span>)).xyz;<br>        irradiance_sh = <span class="hljs-built_in">AddSH</span>(irradiance_sh, <span class="hljs-built_in">MulSH</span>(<span class="hljs-built_in">SHBasisFunction</span>(world_ray), trace_irradiance / pdf));<br>		num_valid_sample += <span class="hljs-number">1.0f</span>;<br>    &#125;<br>&#125;<br><br><span class="hljs-keyword">if</span> (num_valid_sample &gt; <span class="hljs-number">0</span>)<br>&#123;<br>	irradiance_sh = <span class="hljs-built_in">MulSH</span>(irradiance_sh, <span class="hljs-number">1.0f</span> / num_valid_sample);<br>&#125;<br></code></pre></td></tr></table></figure>
+<h3 id="Radiosity-Integrate"><a href="#Radiosity-Integrate" class="headerlink" title="Radiosity Integrate"></a>Radiosity Integrate</h3><p>Finally, sample the probes around the current pixel and calculate the weights based on the atlas position. Then, accumulate the SH weights and weighted SH, calculate the basis function using the current pixel’s world normal, and dot product the basis function with the SH result.  By dividing it by the total sum of SH weights, we get the final radiance value for the current pixel.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs cpp">FTwoBandSHVectorRGB irradiance_sh = (FTwoBandSHVectorRGB)<span class="hljs-number">0</span>;<br><br>FTwoBandSHVectorRGB sub_irradiance_sh00 = <span class="hljs-built_in">GetRadiosityProbeSH</span>(ProbeCoord00);<br>FTwoBandSHVectorRGB sub_irradiance_sh01 = <span class="hljs-built_in">GetRadiosityProbeSH</span>(ProbeCoord01);<br>FTwoBandSHVectorRGB sub_irradiance_sh10 = <span class="hljs-built_in">GetRadiosityProbeSH</span>(ProbeCoord10);<br>FTwoBandSHVectorRGB sub_irradiance_sh11 = <span class="hljs-built_in">GetRadiosityProbeSH</span>(ProbeCoord11);<br><br>irradiance_sh = <span class="hljs-built_in">AddSH</span>(irradiance_sh, <span class="hljs-built_in">MulSH</span>(sub_irradiance_sh00, weights.x));<br>irradiance_sh = <span class="hljs-built_in">AddSH</span>(irradiance_sh, <span class="hljs-built_in">MulSH</span>(sub_irradiance_sh01, weights.y));<br>irradiance_sh = <span class="hljs-built_in">AddSH</span>(irradiance_sh, <span class="hljs-built_in">MulSH</span>(sub_irradiance_sh10, weights.z));<br>irradiance_sh = <span class="hljs-built_in">AddSH</span>(irradiance_sh, <span class="hljs-built_in">MulSH</span>(sub_irradiance_sh11, weights.w));<br><br>uint card_index_1d = card_idx_2d.y * SURFACE_CACHE_CARD_NUM_XY + card_idx_2d.x;<br>SCardInfo card_info = scene_card_infos[card_index_1d];<br>SCardData card_data = <span class="hljs-built_in">GetSurfaceCardData</span>(card_info, <span class="hljs-built_in">float2</span>(<span class="hljs-built_in">uint2</span>(thread_index.xy % <span class="hljs-number">128u</span>)) / <span class="hljs-number">128.0f</span>, pixel_atlas_pos.xy);<br>FTwoBandSHVector diffuse_transfer_sh = <span class="hljs-built_in">CalcDiffuseTransferSH</span>(card_data.world_normal, <span class="hljs-number">1.0f</span>);<br><br>float3 texel_irradiance = <span class="hljs-built_in">max</span>(<span class="hljs-built_in">float3</span>(<span class="hljs-number">0.0f</span>, <span class="hljs-number">0.0f</span>, <span class="hljs-number">0.0f</span>), <span class="hljs-built_in">DotSH</span>(irradiance_sh, diffuse_transfer_sh));<br>irtexel_radiance = texel_irradiance / (weights.x + weights.y + weights.z + weights.w);<br></code></pre></td></tr></table></figure>
+
+<p>indirect lighting visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/indirect_lighting_vis.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>combined lighting visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/combined_lighting_vis.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h1 id="Final-Gather"><a href="#Final-Gather" class="headerlink" title="Final Gather"></a>Final Gather</h1><h2 id="Screen-Space-Probe"><a href="#Screen-Space-Probe" class="headerlink" title="Screen Space Probe"></a>Screen Space Probe</h2><h2 id="Importance-Sampling"><a href="#Importance-Sampling" class="headerlink" title="Importance Sampling"></a>Importance Sampling</h2><p>It’s too noisy if we employ uniform sampling rather than importance sampling.<br>without importance sampling Vs with importance sampling:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/is_vs_no_is.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>What we do in the importance sampling part is searching the rays that orientates to the lighting source and world normal. That is to say, we peroform importance sampling for BRDF(fs) term and input radiance(Li) term:</p>
+<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac><msubsup><mi mathvariant="normal">Σ</mi><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup><mfrac><mrow><msub><mi>L</mi><mi>i</mi></msub><mo stretchy="false">(</mo><mi>l</mi><mo stretchy="false">)</mo><msub><mi>f</mi><mi>s</mi></msub><mo stretchy="false">(</mo><mi>l</mi><mo>−</mo><mo>&gt;</mo><mi>v</mi><mo stretchy="false">)</mo><mi>c</mi><mi>o</mi><mi>s</mi><mo stretchy="false">(</mo><mi>θ</mi><mi>l</mi><mo stretchy="false">)</mo></mrow><msub><mi>P</mi><mi>k</mi></msub></mfrac></mrow><annotation encoding="application/x-tex">\frac{1}{N}\Sigma_{k=1}^{N}\frac{L_{i}(l)f_{s}(l-&gt;v)cos(\theta l)}{P_{k}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.4609em;vertical-align:-0.4509em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8451em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.394em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.345em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord"><span class="mord">Σ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8413em;"><span style="top:-2.4169em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10903em;">N</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2831em;"><span></span></span></span></span></span></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.01em;"><span style="top:-2.655em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.13889em;">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3448em;"><span style="top:-2.3488em;margin-left:-0.1389em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.03148em;">k</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1512em;"><span></span></span></span></span></span></span></span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.485em;"><span class="pstrut" style="height:3em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight">L</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3281em;"><span style="top:-2.357em;margin-left:0em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span><span class="mopen mtight">(</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mclose mtight">)</span><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.10764em;">f</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1645em;"><span style="top:-2.357em;margin-left:-0.1076em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">s</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span><span class="mopen mtight">(</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">l</span><span class="mord mtight">−</span><span class="mrel mtight">&gt;</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">v</span><span class="mclose mtight">)</span><span class="mord mathnormal mtight">cos</span><span class="mopen mtight">(</span><span class="mord mathnormal mtight" style="margin-right:0.01968em;">θl</span><span class="mclose mtight">)</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.4509em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span><br>
+
+<h3 id="BRDF-PDF"><a href="#BRDF-PDF" class="headerlink" title="BRDF PDF"></a>BRDF PDF</h3><p>In this step, SimLumen generate the three band sphere harmonic factors for the BRDF function. We sample the screen pixels around the screen probe and compute the influence weight on the probe. If the weight is over the threshold, convert the BRDF to SH and accumulate the SH. Then write the result to the BRDF SH buffer.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float3 pixel_world_position = <span class="hljs-built_in">GetWorldPosByDepth</span>(thread_depth, piexl_tex_uv);<br>float3 probe_world_position = <span class="hljs-built_in">GetWorldPosByDepth</span>(probe_depth, ss_probe_atlas_pos / global_thread_size);<br><br>float4 pixel_world_plane = <span class="hljs-built_in">float4</span>(thread_world_normal, <span class="hljs-built_in">dot</span>(thread_world_normal,pixel_world_position));<br><span class="hljs-type">float</span> plane_distance = <span class="hljs-built_in">abs</span>(<span class="hljs-built_in">dot</span>(<span class="hljs-built_in">float4</span>(probe_world_position, <span class="hljs-number">-1</span>), pixel_world_plane));<br><br><span class="hljs-type">float</span> probe_view_dist = <span class="hljs-built_in">length</span>(probe_world_position - CameraPos);<br><span class="hljs-type">float</span> relative_depth_diff = plane_distance / probe_view_dist;<br><span class="hljs-type">float</span> depth_weight = <span class="hljs-built_in">exp2</span>(<span class="hljs-number">-10000.0f</span> * (relative_depth_diff * relative_depth_diff));<br><span class="hljs-keyword">if</span>(depth_weight &gt; <span class="hljs-number">0.1f</span>)<br>&#123;<br>    uint write_index;<br>    <span class="hljs-built_in">InterlockedAdd</span>(group_num_sh, <span class="hljs-number">1</span>, write_index);<br><br>    FThreeBandSHVector brdf = <span class="hljs-built_in">CalcDiffuseTransferSH3</span>(thread_world_normal, <span class="hljs-number">1.0</span>);<br>    <span class="hljs-built_in">WriteGroupSharedSH</span>(brdf, write_index);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>The pixel normal may be located in a different plane from the probe. Therefore, we compute the plane weight for the given pixel and reject the pixel if the depth weight is over the threshold. Then, store the results of those valid pixels in a <strong>group shared</strong> array.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/brdf_depth_weight.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>After that, perform a parallel reduction to accumulate these SH factors.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/acc_brdf_pdf.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>Finally, the first nine threads store the 9 SH factors in output BRDF SH buffer.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (thread_index &lt; <span class="hljs-number">9</span> &amp;&amp; group_num_sh &gt; <span class="hljs-number">0</span>)<br>&#123;<br>    uint write_index = (ss_probe_idx_xy.y * screen_probe_size_x + ss_probe_idx_xy.x) * <span class="hljs-number">9</span> + thread_index;<br>    <span class="hljs-type">float</span> normalize_weight = <span class="hljs-number">1.0f</span> / (<span class="hljs-type">float</span>)(group_num_sh);<br>    brdf_pdf_sh[write_index] = pdf_sh[offset][thread_index] * normalize_weight;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>brdf pdf visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/brdf_pdf_vis.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h3 id="Lighting-PDF"><a href="#Lighting-PDF" class="headerlink" title="Lighting PDF"></a>Lighting PDF</h3><p>The light source direction in the current frame is unknown. In order to search the light direction, we assume lighting changes slightly and reuse the previous frame’s lighting result.</p>
+<p align="center">
+    <img src="/resource/simlumen/image/ss_light_is.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>Then, reproject the probe into the previous frame screen position and find the corresponding direction texel.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">const</span> float2 global_thread_size = <span class="hljs-built_in">float2</span>(is_pdf_thread_size_x,is_pdf_thread_size_y);<br>float3 probe_world_position = gbuffer_c.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(ss_probe_atlas_pos.xy,<span class="hljs-number">0</span>)).xyz;<br><br>float4 pre_view_pos = <span class="hljs-built_in">mul</span>(PreViewProjMatrix,<span class="hljs-built_in">float4</span>(probe_world_position, <span class="hljs-number">1.0</span>));<br>float2 pre_view_screen_pos = (<span class="hljs-built_in">float2</span>(pre_view_pos.xy / pre_view_pos.w) * <span class="hljs-number">0.5</span> + <span class="hljs-built_in">float2</span>(<span class="hljs-number">0.5</span>,<span class="hljs-number">0.5</span>));<br>pre_view_screen_pos.y = (<span class="hljs-number">1.0</span> - pre_view_screen_pos.y);<br>pre_view_screen_pos = pre_view_screen_pos * global_thread_size;<br>uint2 pre_probe_pos = <span class="hljs-built_in">uint2</span>(pre_view_screen_pos) / <span class="hljs-built_in">uint2</span>(PROBE_SIZE_2D,PROBE_SIZE_2D);<br>uint2 pre_texel_pos = pre_probe_pos * <span class="hljs-built_in">uint2</span>(PROBE_SIZE_2D,PROBE_SIZE_2D) + group_thread_idx.xy;<br><br>lighting = sspace_composited_radiance.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(pre_texel_pos.xy,<span class="hljs-number">0</span>));<br></code></pre></td></tr></table></figure>
+
+<p>lighting importance sampling pdf visualization:</p>
+<p align="center">
+    <img src="/resource/simlumen/image/lighting_is_pdf_vis.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h3 id="Structured-Importance-Sampling"><a href="#Structured-Importance-Sampling" class="headerlink" title="Structured Importance Sampling"></a>Structured Importance Sampling</h3>
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/My-Projects/" class="category-chain-item">My Projects</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Simplified Lumen GI In MiniEngine</div>
+      <div>http://example.com/2024/05/18/Simplified-Lumen-GI-In-MiniEngine/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Shawn Tang</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>May 18, 2024</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2024/05/08/Simplified-Nanite-Virtualized-Geometry-In-MiniEngine/" title="Simplified Nanite In MiniEngine">
+                        <span class="hidden-mobile">Simplified Nanite In MiniEngine</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>Table of Contents</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>

@@ -1,0 +1,806 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Shawn Tang">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="OverviewThis is a simplified Nanite implementation (SimNanite) based on Unreal’s Nanite virtual geometry. We have implemented most of Unreal Nanite’s features. In offline, we partition the triangles i">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Simplified Nanite In MiniEngine">
+<meta property="og:url" content="http://example.com/2024/05/08/Simplified-Nanite-Virtualized-Geometry-In-MiniEngine/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="OverviewThis is a simplified Nanite implementation (SimNanite) based on Unreal’s Nanite virtual geometry. We have implemented most of Unreal Nanite’s features. In offline, we partition the triangles i">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/resource/simnanite/image/vis_clu_0.png">
+<meta property="article:published_time" content="2024-05-08T14:09:35.000Z">
+<meta property="article:modified_time" content="2024-05-17T13:21:23.108Z">
+<meta property="article:author" content="Shawn Tang">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/resource/simnanite/image/vis_clu_0.png">
+  
+  
+  
+  <title>Simplified Nanite In MiniEngine - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.7","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":10},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>ShawnTSH1229</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>Home</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>Archives</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>Categories</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>About</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Simplified Nanite In MiniEngine"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-05-08 22:09" pubdate>
+          May 8, 2024 pm
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          1.3k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          11 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">Simplified Nanite In MiniEngine</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Overview"><a href="#Overview" class="headerlink" title="Overview"></a>Overview</h1><p>This is a simplified Nanite implementation (SimNanite) based on Unreal’s Nanite virtual geometry. We have implemented most of Unreal Nanite’s features.</p>
+<p>In offline, we partition the triangles into clusters with the Metis graph partition library. Then, SimNanite partitions the clusters into cluster groups, builds the DAG (Directed Acyclic Graph) and BVH tree based on the cluster groups. In order to avoid the LOD crack, SimNanite simplify the mesh globally rather than simplifying the triangles per cluster.</p>
+<p>At runtime, we implement a three-level GPU culling pipeline: instance culling, BVH node culling and cluster culling. In the BVH node culling pass, we use the MPMC ( Multiple Producers, Single Consumer ) model to transverse the BVH structure and integrate the cluster culling into the BVH culling shader for work balance.</p>
+<p>We generate an indirect draw or indirect dispatch command for those clusters that pass the culling. If the cluster is small enough, we employ the software rasterization with compute shader.</p>
+<p>During the rasterization pass, we write the cluster index and triangle index to the visibility buffer. In the next base pass or GBuffer rendering, we fetch these indices from the visibility buffer, calculate the pixel attributes (UV and normal) by barycentric coordinates and render the scene with these attributes.</p>
+<h1 id="Nanite-Builder"><a href="#Nanite-Builder" class="headerlink" title="Nanite Builder"></a>Nanite Builder</h1><h2 id="Overview-1"><a href="#Overview-1" class="headerlink" title="Overview"></a>Overview</h2><p>SimNanite (Simplified Nanite) building is an offline mesh processing during mesh import. It splits the mesh into <strong>clusters</strong> to provide a fine-grained mesh culling with a graph partition algorithm. Beyond the cluster level, SimNanite partitions the cluster into <strong>groups</strong> to accelerate mesh culling. Cluster groups are the leaf nodes of the <strong>BVH structure</strong>. In addtion, SimNanite <strong>simplifies the merged clusters</strong> at the current level rather than separate clusters in order to avoid the Lod crack artifact without boundnary edge locking.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/nanite_builder_overview.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h2 id="Triangle-Partition"><a href="#Triangle-Partition" class="headerlink" title="Triangle Partition"></a>Triangle Partition</h2><p>SimNanite partitions the mesh into clusters in order to perform fine-grained GPU culling. Meshes can be viewed as graphs, whose nodes are vertex points and edges are mesh topology. With the graph representation, we can partition it with the Metis graph library. </p>
+<p>Given a mesh without an index buffer, SimNanite processes the mesh triangles sequentially. For each triangle, SimNanite hash the vertex position to find the vertex index of the adjacent list array. Each vertex in the triangle has 6 edges. We add these edge points into the coresponding vertex adjacent unordered_set. </p>
+<p align="center">
+    <img src="/resource/simnanite/image/find_vertex_adjacent.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>The Metis library’s graph partition function input has two parts: vertex adjacent list array and vertex adjacent offsets. Vertex adjacent offsets record the offsets of each vertex in the vertex adjacent list.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/metis_input_format.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>With the adjacent vertex list for each vertex, we can pack them into an array and record their offsets.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/metis_input.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>After the triangle partition, Metis outputs an array containing the partition index of each vertex. The next step is to batch the triangles into clusters with the partition result and find out the linked clusters for each cluster. If the vertices of one triangle belong to different partitions, this triangle can be viewed as an “edge-cluster”. We add these clusters to the linked clusters array in order to partition the clusters in the next step.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">idx_t</span> tri_parts[<span class="hljs-number">3</span>];<br>tri_parts[<span class="hljs-number">0</span>] = part_a;<br><br><span class="hljs-type">int</span> triangle_part_num = <span class="hljs-number">1</span>;<br><span class="hljs-keyword">if</span> (part_b != part_a)<br>&#123;<br>	tri_parts[triangle_part_num] = part_b;<br>	triangle_part_num++;<br>&#125;<br><br><span class="hljs-keyword">if</span> ((part_c != part_a) &amp;&amp; (part_c != part_b))<br>&#123;<br>	tri_parts[triangle_part_num] = part_c;<br>	triangle_part_num++;<br>&#125;<br><br><span class="hljs-keyword">if</span> (triangle_part_num == <span class="hljs-number">2</span>)<br>&#123;<br>	out_clusters[tri_parts[<span class="hljs-number">0</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">1</span>]);<br>	out_clusters[tri_parts[<span class="hljs-number">1</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">0</span>]);<br>&#125;<br><span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (triangle_part_num == <span class="hljs-number">3</span>)<br>&#123;<br>	out_clusters[tri_parts[<span class="hljs-number">0</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">1</span>]);<br>	out_clusters[tri_parts[<span class="hljs-number">0</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">2</span>]);<br><br>	out_clusters[tri_parts[<span class="hljs-number">1</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">0</span>]);<br>	out_clusters[tri_parts[<span class="hljs-number">1</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">2</span>]);<br><br>	out_clusters[tri_parts[<span class="hljs-number">2</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">0</span>]);<br>	out_clusters[tri_parts[<span class="hljs-number">2</span>]].m_linked_cluster.<span class="hljs-built_in">insert</span>(tri_parts[<span class="hljs-number">1</span>]);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h2 id="Cluster-Partition"><a href="#Cluster-Partition" class="headerlink" title="Cluster Partition"></a>Cluster Partition</h2><p>With clusters and linked clusters, we can partition them into cluster groups as we do in the triangle partition pass. Cluster group is the leaf node in BVH acceleration structure. Usually, it consists of four to eight clusters.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/vtx_clu_grp_map.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>Below is the cluster visualization at LOD level 0, 1 and 2 in SimNanite:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/vis_clu_0.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p align="center">
+    <img src="/resource/simnanite/image/vis_clu_1.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p align="center">
+    <img src="/resource/simnanite/image/vis_clu_2.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<h2 id="Mesh-Simplification"><a href="#Mesh-Simplification" class="headerlink" title="Mesh Simplification"></a>Mesh Simplification</h2><p>We simplify the mesh until the cluster number is less than 24 or fails to simplify the mesh. The mesh simplification library is Meshoptimizer. It employs the QEM method to simplify the mesh, which is similar to what the Unreal Engine does. Another important point is that we simplify the global mesh rather than the cluster, as the latter method causes the <strong>LOD crack</strong> whitout boundnary edge locking. </p>
+<p align="center">
+    <img src="/resource/simnanite/image/mesh_simplify.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<h2 id="Build-DAG"><a href="#Build-DAG" class="headerlink" title="Build DAG"></a>Build DAG</h2><p>In the DAG (Directed Acyclic Graph) building pass, we organize the data and translate it into a GPU-friendly structure to acclerate to GPU-culling performed later. </p>
+<p align="center">
+    <img src="/resource/simnanite/image/adg_structure.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<p>SimNanite merges the resources of all lod level into a global resource array. That is to say, a simnanite mesh resource only has one vertex buffer, one index buffer, one cluster group array and one cluster array. UE’s Nanite performs an additional compression process after mesh building. We ignore compression for simplicity.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/dag_data.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>A nanite mesh resource contains several lod resources. Each LOD resource stores cluster group indices in the current level. The max cluster group number per LOD is 8.  It stores the vertex and index location in the mesh vertex buffer. Nanite mesh building consume a lot of time. To accelerate programming efficiency, we serialize the DAG structure on the disk and load it without building at the next launch.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">CSimNaniteClusterResource</span><br>&#123;<br>	DirectX::BoundingBox m_bouding_box;<br>	<br>	<span class="hljs-type">int</span> m_index_count;<br>	<span class="hljs-type">int</span> m_start_index_location;<br>	<span class="hljs-type">int</span> m_start_vertex_location;<br>&#125;;<br><br><span class="hljs-keyword">struct</span> <span class="hljs-title class_">CSimNaniteClusterGrpupResource</span><br>&#123;<br>	DirectX::BoundingBox m_bouding_box;<br>	<span class="hljs-type">float</span> cluster_next_lod_dist;<br>	<span class="hljs-type">int</span> m_child_group_num;<br>	<span class="hljs-type">int</span> m_cluster_num;<br><br>	std::vector&lt;<span class="hljs-type">int</span>&gt;m_child_group_indices;<br>	std::vector&lt;<span class="hljs-type">int</span>&gt;m_clusters_indices;<br><br>	<span class="hljs-function"><span class="hljs-keyword">typedef</span> <span class="hljs-title">void</span> <span class="hljs-params">(*group_serialize_fun)</span><span class="hljs-params">(<span class="hljs-type">char</span>*, <span class="hljs-type">long</span> <span class="hljs-type">long</span>, <span class="hljs-type">void</span>* streaming)</span></span>;<br>	<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">Serialize</span><span class="hljs-params">(group_serialize_fun func, <span class="hljs-type">void</span>* streaming)</span></span>;<br>&#125;;<br><br><span class="hljs-keyword">struct</span> <span class="hljs-title class_">CSimNaniteLodResource</span><br>&#123;<br>	<span class="hljs-type">int</span> m_cluster_group_num;<br>	<span class="hljs-type">int</span> m_cluster_group_index[<span class="hljs-number">8</span>];<br>&#125;;<br><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">CSimNaniteMeshResource</span><br>&#123;<br><span class="hljs-keyword">public</span>:<br>	SSimNaniteMeshHeader m_header;<br><br>	DirectX::BoundingBox m_bouding_box;<br>	<br>	std::vector&lt;DirectX::XMFLOAT3&gt; m_positions;<br>	std::vector&lt;DirectX::XMFLOAT3&gt; m_normals;<br>	std::vector&lt;DirectX::XMFLOAT2&gt; m_uvs;<br>	std::vector&lt;<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span>&gt; m_indices;<br><br>	std::vector&lt;CSimNaniteClusterGrpupResource&gt; m_cluster_groups;<br>	std::vector&lt;CSimNaniteClusterResource&gt;m_clusters;<br>	std::vector&lt;CSimNaniteLodResource&gt; m_nanite_lods;<br><br>	<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">LoadFrom</span><span class="hljs-params">(<span class="hljs-type">const</span> std::string&amp; source_file_an, <span class="hljs-type">const</span> std::wstring&amp; source_file, <span class="hljs-type">bool</span> bforce_rebuild = <span class="hljs-literal">false</span>)</span></span>;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<h2 id="Build-BVH"><a href="#Build-BVH" class="headerlink" title="Build BVH"></a>Build BVH</h2><p>UE’s nanite use BVH to acclerate the GPU cluster group culling and LOD selection. In the offline, UE builds the BVH by SAH (Surface Area Heuristic) method. In SimNanite, we find the maximum dimension of the bound box extents and sort the cluster goups based on the position distribution in the maximum dimension. After that, we split the cluster groups into 4 nodes and build the whole BVH tree bottom-up. Each LOD has a root BVH node. For example, the mesh that has four LOD contains four root nodes.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><code class="hljs cpp">std::vector&lt;SClusterGroupBVHNode&gt; leaf_nodes;<br><span class="hljs-keyword">for</span> (<span class="hljs-type">uint32_t</span> clu_grp_idx = <span class="hljs-number">0</span>; clu_grp_idx &lt; lod_resource.m_cluster_group_num; clu_grp_idx++)<br>&#123;<br>	<span class="hljs-type">uint32_t</span> global_clu_grp_idx = lod_resource.m_cluster_group_start + clu_grp_idx;<br>	SClusterGroupBVHNode leaf_node;<br>	leaf_node.m_is_leaf_node = <span class="hljs-literal">true</span>;<br>	leaf_node.m_cluster_group_index = global_clu_grp_idx;<br>	leaf_node.m_bouding_box = out_nanite_reousource.m_cluster_groups[global_clu_grp_idx].m_bouding_box;<br>	leaf_nodes.<span class="hljs-built_in">push_back</span>(leaf_node);<br>&#125;<br><br><span class="hljs-type">uint32_t</span> max_dimension_index = (bbox.Extents.x &gt; bbox.Extents.y) ? <span class="hljs-number">0</span> : <span class="hljs-number">1</span>;<br><span class="hljs-type">float</span> max_dimension = (bbox.Extents.x &gt; bbox.Extents.y) ? bbox.Extents.x : bbox.Extents.y;<br>max_dimension_index = (max_dimension &gt; bbox.Extents.z) ? max_dimension_index : <span class="hljs-number">2</span>;<br>max_dimension = (max_dimension &gt; bbox.Extents.z) ? max_dimension : bbox.Extents.z;<br>SCustomLess custom_less;<br>custom_less.m_split_dimension = max_dimension_index;<br><br>std::<span class="hljs-built_in">sort</span>(leaf_nodes.<span class="hljs-built_in">begin</span>(), leaf_nodes.<span class="hljs-built_in">end</span>(), custom_less);<br><br><span class="hljs-type">uint32_t</span> offset = bvh_nodes.<span class="hljs-built_in">size</span>();<br><span class="hljs-type">uint32_t</span> level_node_num = leaf_nodes.<span class="hljs-built_in">size</span>();<br><span class="hljs-keyword">for</span> (<span class="hljs-type">uint32_t</span> leaf_idx = <span class="hljs-number">0</span>; leaf_idx &lt; leaf_nodes.<span class="hljs-built_in">size</span>(); leaf_idx++)<br>&#123;<br>	bvh_nodes.<span class="hljs-built_in">push_back</span>(leaf_nodes[leaf_idx]);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h1 id="Culling"><a href="#Culling" class="headerlink" title="Culling"></a>Culling</h1><h2 id="Instance-Culling"><a href="#Instance-Culling" class="headerlink" title="Instance Culling"></a>Instance Culling</h2><p>This step performs instance-level GPU-Culling, which is easy to implement and not necessary to detail it. The input of this step is the scene instance data and the output is the instance culled by the camera.</p>
+<p>scene instance data:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/ins_cull_scene.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>instances viewed by camera:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/ins_cull_view.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>instances culled by camera:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/ins_cull_scene_view.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<h2 id="Persistent-Culling"><a href="#Persistent-Culling" class="headerlink" title="Persistent Culling"></a>Persistent Culling</h2><p>I tried to implement a DAG transversal at first. But I found it was too complicated to traverse to DAG in the compute shader. So I finally use the <strong>BVH structure</strong> to traverse the cluster group on GPU, which is same as the unreal does.</p>
+<p>UE’s Nanite use the MPMC ( Multiple Producers, Single Consumer ) model to transverse the BVH structure. What’s more, it integrates the cluster culling into BVH culling shader for work balance. <strong>In SimNanite, we have implemented the two features (MPMC and integrate cluster culling) mentioned above.</strong></p>
+<p align="center">
+    <img src="/resource/simnanite/image/persistent_cull_work_flow.png" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+<p>SimNanite processes the node culling tasks at first. After the previous node culling task has completed, the first thread in the group fetches the node tasks from the node MPMC culling task queue.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(node_processed_size == GROUP_PROCESS_NODE_NUM)<br>&#123;<br>    <span class="hljs-keyword">if</span>(group_index == <span class="hljs-number">0</span>)<br>    &#123;<br>        <span class="hljs-built_in">InterlockedAdd</span>(queue_pass_state[<span class="hljs-number">0</span>].node_task_read_offset, GROUP_PROCESS_NODE_NUM, group_start_node_idx);<br>    &#125;<br>    <span class="hljs-built_in">GroupMemoryBarrierWithGroupSync</span>();<br><br>    node_processed_size = <span class="hljs-number">0</span>;<br>    node_start_idx = group_start_node_idx;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Then, the compute group counts the node tasks ready to process.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(is_node_ready)<br>&#123;<br>    <span class="hljs-built_in">InterlockedOr</span>(group_node_processed_mask, <span class="hljs-number">1u</span> &lt;&lt; group_index);<br>&#125;<br><span class="hljs-built_in">AllMemoryBarrierWithGroupSync</span>();<br></code></pre></td></tr></table></figure>
+<p>We start the node culling task when at least one node is ready in the group. SimNanite generates cluster culling tasks and pushes these tasks to the cluster culling queue if a node is a leaf node and its cluster group error is small enough. Otherwise, SimNanite generates BVH node culling tasks and push these to the BVH node culling queue.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/process_node.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<h2 id="Cluster-Culling"><a href="#Cluster-Culling" class="headerlink" title="Cluster Culling"></a>Cluster Culling</h2><p>Cluster culling is a two-pass process. The first pass is performed at the persistent culling stage. It will process the cluster culling task if there are no node culling tasks for the compute group to process. SimNanite dispatches an additional cluster culling pass after the persistent culling stage to process tasks that were not handled in the previous stage.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(clu_task_start_index == <span class="hljs-number">0xFFFFFFFF</span>u)<br>&#123;<br>    <span class="hljs-keyword">if</span>(group_index == <span class="hljs-number">0</span>)<br>    &#123;<br>        <span class="hljs-built_in">InterlockedAdd</span>(queue_pass_state[<span class="hljs-number">0</span>].cluster_task_read_offset, <span class="hljs-number">1</span>, group_start_clu_index);<br>    &#125;<br>    <span class="hljs-built_in">GroupMemoryBarrierWithGroupSync</span>();<br>    clu_task_start_index = group_start_clu_index;<br>&#125;<br><br><span class="hljs-keyword">if</span> (group_index == <span class="hljs-number">0</span>)<br>&#123;<br>    group_node_task_num = queue_pass_state[<span class="hljs-number">0</span>].node_num;<br>    group_clu_task_size = cluster_task_batch_size.<span class="hljs-built_in">Load</span>(clu_task_start_index * <span class="hljs-number">4</span> <span class="hljs-comment">/*sizeof uint*/</span>);<br>&#125;<br><span class="hljs-built_in">GroupMemoryBarrierWithGroupSync</span>();<br><br>uint clu_task_ready_size = group_clu_task_size;<br><span class="hljs-keyword">if</span>(!has_node_task &amp;&amp; clu_task_ready_size == <span class="hljs-number">0</span>)<br>&#123;<br>    <span class="hljs-keyword">break</span>;<br>&#125;<br><br><span class="hljs-keyword">if</span>(clu_task_ready_size &gt; <span class="hljs-number">0</span>)<br>&#123;<br>    <span class="hljs-keyword">if</span>(group_index &lt; clu_task_ready_size)<br>    &#123;<br>        <span class="hljs-type">const</span> uint2 cluster_task = cluster_task_queue.<span class="hljs-built_in">Load2</span>(clu_task_start_index * <span class="hljs-number">8</span> <span class="hljs-comment">/*sizeof(uint2)*/</span>);<br>        <span class="hljs-type">const</span> uint cluster_task_instance_index = cluster_task.x;<br>        <span class="hljs-type">const</span> uint cluster_task_clu_start_index = cluster_task.y;<br>        <span class="hljs-built_in">ProcessCluster</span>(cluster_task_instance_index, cluster_task_clu_start_index + group_index);<br>    &#125;<br>    clu_task_start_index = <span class="hljs-number">0xFFFFFFFF</span>u;<br>&#125;<br><br><span class="hljs-type">int</span> node_task_num = group_node_task_num;<br><span class="hljs-keyword">if</span> (has_node_task &amp;&amp; node_task_num == <span class="hljs-number">0</span>)<br>&#123;<br>    has_node_task = <span class="hljs-literal">false</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h1 id="Generate-Indirect-Draw-Command"><a href="#Generate-Indirect-Draw-Command" class="headerlink" title="Generate Indirect Draw Command"></a>Generate Indirect Draw Command</h1><p>An indirect draw command is generated during cluster culling. SimNanite uses <strong>software rasterization</strong> for those clusters that are small enough, which is the same as UE’s Nanite solution.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/generate_indirect_draw.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<p>SimNanite uses instance ID to index the cluster buffer for hardware rasterization. For software rasterization, SimNanite uses group ID to index the cluster buffer. Each compute group processes one cluster triangle.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs cpp">SIndirectDrawParameters indirect_draw_parameters;<br>indirect_draw_parameters.vertex_count = <span class="hljs-number">1701</span>;<br>indirect_draw_parameters.instance_count = hardware_indirect_draw_num.<span class="hljs-built_in">Load</span>(<span class="hljs-number">0</span>);<br>indirect_draw_parameters.start_vertex_location = <span class="hljs-number">0</span>;<br>indirect_draw_parameters.start_instance_location = <span class="hljs-number">0</span>;<br>hardware_draw_indirect[<span class="hljs-number">0</span>] = indirect_draw_parameters;<br><br>SIndirectDispatchCmd indirect_dispatch_parameters;<br>indirect_dispatch_parameters.thread_group_count_x = software_indirect_draw_num.<span class="hljs-built_in">Load</span>(<span class="hljs-number">0</span>);<br>indirect_dispatch_parameters.thread_group_count_y = <span class="hljs-number">1</span>;<br>indirect_dispatch_parameters.thread_group_count_z = <span class="hljs-number">1</span>;<br>software_draw_indirect[<span class="hljs-number">0</span>] = indirect_dispatch_parameters;<br></code></pre></td></tr></table></figure>
+<h1 id="Hardware-Rasterization"><a href="#Hardware-Rasterization" class="headerlink" title="Hardware Rasterization"></a>Hardware Rasterization</h1><p>SimNanite uses indirect draw instances for hardware rasterization clusters. Vertex shaders index clusters by instance ID. Clusters store the information about the vertex buffer range. It should be noticed that all vertex buffers in the <strong>scene are merged into a global single buffer</strong>. Otherwise, we can rasterize the scene only with an indirect draw call if we don’t merge buffers together. UE’s Nanite also implement a complicated steaming solution for the global scene vertex buffer mannagement.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/hardware_indirect_draw.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<p>We load the vertex position data indexed by scene index buffer and culled from cluster buffer. After MVP transform, we store the cluster index and triangle index into the visibility buffer. In additional, we store the material index to the material ID buffer, which will be used as depth test buffer in the latter rendering pass.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(vertex_id &lt; index_count)<br>&#123;<br>    uint index_read_pos = start_index_location + vertex_id;<br><br>    uint vertex_index_idx = global_index_buffer.<span class="hljs-built_in">Load</span>(index_read_pos * <span class="hljs-number">4</span><span class="hljs-comment">/*sizeof int*/</span>);<br>    uint vertex_idx = vertex_index_idx + start_vertex_location;<br><br>    float3 vertex_position = <span class="hljs-built_in">asfloat</span>(global_vertex_pos_buffer.<span class="hljs-built_in">Load3</span>((vertex_idx * <span class="hljs-number">3</span>)* <span class="hljs-number">4</span><span class="hljs-comment">/*sizeof int*/</span>));<br><br>    uint triangle_id = vertex_id / <span class="hljs-number">3</span>;<br>    uint visibility_value = triangle_id &amp; <span class="hljs-number">0x0000FFFF</span>u;<br>    visibility_value = visibility_value | <span class="hljs-built_in">uint</span>(instance_id &lt;&lt; <span class="hljs-number">16u</span>);<br><br>    float4 position = <span class="hljs-built_in">float4</span>(vertex_position, <span class="hljs-number">1.0</span>);<br>    float3 worldPos = <span class="hljs-built_in">mul</span>(cluster_draw.world_matrix, position).xyz;<br>    vsOutput.position = <span class="hljs-built_in">mul</span>(ViewProjMatrix, <span class="hljs-built_in">float4</span>(worldPos, <span class="hljs-number">1.0</span>));<br>    vsOutput.visibility_value = visibility_value;<br>    vsOutput.material_idx = cluster_draw.material_idx;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Bellow is the visibility buffer visualization:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/visibility_buffer.png" srcset="/img/loading.gif" lazyload width="100%" height="100%">
+</p>
+
+<h1 id="Software-Rasterization"><a href="#Software-Rasterization" class="headerlink" title="Software Rasterization"></a>Software Rasterization</h1><p>In cases of triangles that are small enough, we use software rasterization by the compute shader. Each thread in the compute group processes one triangle. First, load the vertex position buffer based on the triangle index and the cluster index.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint start_index_this_triangle = start_index_location + triangle_index * <span class="hljs-number">3</span>;<br>uint3 indices = global_index_buffer.<span class="hljs-built_in">Load3</span>((start_index_this_triangle / <span class="hljs-number">3</span>) * <span class="hljs-number">3</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 3 * sizeof(uint) */</span>);<br><br>float3 vertex_pos_a = <span class="hljs-built_in">asfloat</span>(global_vertex_pos_buffer.<span class="hljs-built_in">Load3</span>((start_vertex_location + indices.x) * <span class="hljs-number">3</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 3 * sizeof(float)*/</span>));<br>float3 vertex_pos_b = <span class="hljs-built_in">asfloat</span>(global_vertex_pos_buffer.<span class="hljs-built_in">Load3</span>((start_vertex_location + indices.y) * <span class="hljs-number">3</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 3 * sizeof(float)*/</span>));<br>float3 vertex_pos_c = <span class="hljs-built_in">asfloat</span>(global_vertex_pos_buffer.<span class="hljs-built_in">Load3</span>((start_vertex_location + indices.z) * <span class="hljs-number">3</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 3 * sizeof(float)*/</span>));<br></code></pre></td></tr></table></figure>
+
+<p>Then, calculate the screen position based on the cluster instance world matrix and view projection matrix.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float4x4 world_matrix = cluster_draw.world_matrix;<br>        <br>float4 worldPos_a = <span class="hljs-built_in">mul</span>(world_matrix, position_a).xyzw;<br>float4 worldPos_b = <span class="hljs-built_in">mul</span>(world_matrix, position_b).xyzw;<br>float4 worldPos_c = <span class="hljs-built_in">mul</span>(world_matrix, position_c).xyzw;<br><br>float4 clip_pos_a = <span class="hljs-built_in">mul</span>(ViewProjMatrix, worldPos_a);<br>float4 clip_pos_b = <span class="hljs-built_in">mul</span>(ViewProjMatrix, worldPos_b);<br>float4 clip_pos_c = <span class="hljs-built_in">mul</span>(ViewProjMatrix, worldPos_c);<br><br>float3 ndc_pos_a = <span class="hljs-built_in">float3</span>(clip_pos_a.xyz / clip_pos_a.w);<br>float3 ndc_pos_b = <span class="hljs-built_in">float3</span>(clip_pos_b.xyz / clip_pos_b.w);<br>float3 ndc_pos_c = <span class="hljs-built_in">float3</span>(clip_pos_c.xyz / clip_pos_c.w);<br><br>float4 screen_pos_a = <span class="hljs-built_in">float4</span>((ndc_pos_a.x + <span class="hljs-number">1.0f</span>) * <span class="hljs-number">0.5f</span> * rendertarget_size.x, (ndc_pos_a.y + <span class="hljs-number">1.0f</span>) * <span class="hljs-number">0.5f</span> * rendertarget_size.y, ndc_pos_a.z, clip_pos_a.w); <br>float4 screen_pos_b = <span class="hljs-built_in">float4</span>((ndc_pos_b.x + <span class="hljs-number">1.0f</span>) * <span class="hljs-number">0.5f</span> * rendertarget_size.x, (ndc_pos_b.y + <span class="hljs-number">1.0f</span>) * <span class="hljs-number">0.5f</span> * rendertarget_size.y, ndc_pos_b.z, clip_pos_b.w); <br>float4 screen_pos_c = <span class="hljs-built_in">float4</span>((ndc_pos_c.x + <span class="hljs-number">1.0f</span>) * <span class="hljs-number">0.5f</span> * rendertarget_size.x, (ndc_pos_c.y + <span class="hljs-number">1.0f</span>) * <span class="hljs-number">0.5f</span> * rendertarget_size.y, ndc_pos_c.z, clip_pos_c.w); <br></code></pre></td></tr></table></figure>
+<p>Execute the back face culling process.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span>(<span class="hljs-built_in">IsBackFace</span>(ndc_pos_a, ndc_pos_b, ndc_pos_c))<br>&#123;<br>    <span class="hljs-keyword">return</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Rasterize the screen pixels covered by triangles. This is the simplest implementation and can be optimized in the future.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs cpp">int2 bbox_min = (int2)<span class="hljs-built_in">min</span>(screen_pos_a.xy,  <span class="hljs-built_in">min</span>(screen_pos_b.xy, screen_pos_c.xy));<br>int2 bbox_max = (int2)<span class="hljs-built_in">max</span>(screen_pos_a.xy,  <span class="hljs-built_in">max</span>(screen_pos_b.xy, screen_pos_c.xy));<br><br><span class="hljs-keyword">if</span>(bbox_max.x &gt; <span class="hljs-number">0</span> &amp;&amp; bbox_max.y &gt; <span class="hljs-number">0</span> &amp;&amp; bbox_min.x &lt; rendertarget_size.x &amp;&amp; bbox_min.y &lt; rendertarget_size.y)<br>&#123;<br>    <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> y = bbox_min.y; y &lt;= bbox_max.y; y++)<br>    &#123;<br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> x = bbox_min.x; x &lt;= bbox_max.x; x++)<br>        &#123;<br>            ......<br>        &#125;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Finally, we calculate the barycentric coordinates and screen depth of this pixel. The compute shader is not able to perform a hardware depth test, so we convert the depth value type from float to int and use <strong>InterlockedMax</strong> to perform a software depth test.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float3 barycentric = <span class="hljs-built_in">BarycentricCoordinate</span>(<span class="hljs-built_in">float2</span>(x, y), screen_pos_a.xy, screen_pos_b.xy, screen_pos_c.xy);<br><span class="hljs-keyword">if</span>(barycentric.x &gt;= <span class="hljs-number">0</span> &amp;&amp; barycentric.y &gt;= <span class="hljs-number">0</span> &amp;&amp; barycentric.z &gt;= <span class="hljs-number">0</span>)<br>&#123;<br>    <span class="hljs-type">float</span> depth = barycentric.x * screen_pos_a.z + barycentric.y * screen_pos_b.z + barycentric.z * screen_pos_c.z;<br><br>    uint depth_uint = depth * <span class="hljs-number">0x7FFFFFFF</span>u;<br>    uint2 pixel_pos = <span class="hljs-built_in">uint2</span>(x, rendertarget_size.y - y);<br>    uint pre_depth;<br>    <span class="hljs-built_in">InterlockedMax</span>(intermediate_depth_buffer[pixel_pos], depth_uint, pre_depth);<br>    <span class="hljs-keyword">if</span> (depth_uint &gt; pre_depth)<br>    &#123;<br>        uint triangle_id = triangle_index;<br>        uint visibility_value = triangle_id &amp; <span class="hljs-number">0x0000FFFF</span>u;<br>        visibility_value = visibility_value | <span class="hljs-built_in">uint</span>(instance_id &lt;&lt; <span class="hljs-number">16u</span>);<br><br>        out_vis_buffer[pixel_pos] = visibility_value;<br>        out_mat_id_buffer[pixel_pos] = cluster_draw.material_idx;<br>        visualize_softrasterization[pixel_pos] = <span class="hljs-number">1</span>;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Below is a visualization of the software rasterization process. The <strong>green</strong> area is rasterized by the software compute shader.</p>
+<p>Hardware Rasterization Part:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/vis_softraster_hard.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<p>Software Rasterization Part:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/vis_softraster_soft.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<p>Visualize Visibility Buffer:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/vis_softraster_visbuffer.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+
+<h1 id="BasePass-or-GBuffer-Pass"><a href="#BasePass-or-GBuffer-Pass" class="headerlink" title="BasePass or GBuffer Pass"></a>BasePass or GBuffer Pass</h1><p>With the visibility buffer, we can finally render the scene. First, SimNanite transfers the material index to the depth buffer, which will be used in the next pass’s depth test operation.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">float</span> <span class="hljs-title">ps_main</span><span class="hljs-params">(in float2 tex: TexCoord0)</span>: SV_Depth</span><br><span class="hljs-function">&#123;</span><br>    uint2 load_pos = tex * rendertarget_size;<br>    uint material_index = mat_id_buffer.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(load_pos.xy, <span class="hljs-number">0</span>));<br>    <span class="hljs-type">float</span> depth = <span class="hljs-built_in">float</span>(material_index) / <span class="hljs-number">1024.0</span>;<br>    <span class="hljs-keyword">return</span> depth;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Then we draw a full screen quad for each material. The depth of this quad equals to material index.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">vs_main</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">    in uint VertID : SV_VertexID,</span></span><br><span class="hljs-params"><span class="hljs-function">    out float2 Tex : TexCoord0,</span></span><br><span class="hljs-params"><span class="hljs-function">    out float4 Pos : SV_Position)</span></span><br><span class="hljs-function"></span>&#123;<br>    <span class="hljs-type">float</span> depth = <span class="hljs-built_in">float</span>(material_index) / <span class="hljs-number">1024.0</span>;<br><br>    Tex = <span class="hljs-built_in">float2</span>(<span class="hljs-built_in">uint2</span>(VertID, VertID &lt;&lt; <span class="hljs-number">1</span>) &amp; <span class="hljs-number">2</span>);<br>    Pos = <span class="hljs-built_in">float4</span>(<span class="hljs-built_in">lerp</span>(<span class="hljs-built_in">float2</span>(<span class="hljs-number">-1</span>, <span class="hljs-number">1</span>), <span class="hljs-built_in">float2</span>(<span class="hljs-number">1</span>, <span class="hljs-number">-1</span>), Tex), depth, <span class="hljs-number">1</span>);<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>Unreal’s Nanite dipatches an additional material classify pass to split the screen into tiles. Then Unreal uses indirect draw to draw the tiles generated in the previous pass, which reduces quad overdraw. In SimNanite, we remove the classify pass and draw the screen quad directly. For each material quad, we only render pixels that pass the material index depth test. Below are two material quad depth test figures. The first one is bunny material and the second one is teapot material.</p>
+<p align="center">
+    <img src="/resource/simnanite/image/depth_test_0.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p align="center">
+    <img src="/resource/simnanite/image/depth_test_1.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>For each pixel, SimNanite fetches the cluster index and triangle index from the visibility buffer. Then, we calculate the barycentric coordinates based on the vertex position buffer. Finally, SimNanite calculates the vertex attributes, such as pixel UV and pixel normal by barycentric coordnates. The render the material with these attributes.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">float4 <span class="hljs-title">ps_main</span><span class="hljs-params">(in float2 tex: TexCoord0)</span>: SV_Target0</span><br><span class="hljs-function">&#123;</span><br>    uint2 load_pos = tex * rendertarget_size;<br>    uint depth_buffer = in_depth_buffer.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(load_pos.xy,<span class="hljs-number">0</span>));<br>    float4 output_color = <span class="hljs-built_in">float4</span>(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);<br>    <span class="hljs-keyword">if</span>(depth_buffer != <span class="hljs-number">0</span>)<br>    &#123;<br>        uint visibility_value = in_vis_buffer.<span class="hljs-built_in">Load</span>(<span class="hljs-built_in">int3</span>(load_pos.xy,<span class="hljs-number">0</span>));<br>        uint cluster_index = visibility_value &gt;&gt; <span class="hljs-number">16</span>;<br>        uint triangle_index = visibility_value &amp; <span class="hljs-number">0x0000FFFF</span>u;<br><br>        <span class="hljs-comment">// calculate vertex attributes</span><br>        <span class="hljs-comment">// ......</span><br><br>        float3 barycentric = <span class="hljs-built_in">BarycentricCoordinate</span>(<span class="hljs-built_in">float2</span>(load_pos.x, rendertarget_size.y - load_pos.y), screen_pos_a.xy, screen_pos_b.xy, screen_pos_c.xy);<br>        <span class="hljs-type">float</span> z = <span class="hljs-number">1</span> / (barycentric.x / position_a.w + barycentric.y / position_b.w + barycentric.z / position_c.w);<br>        barycentric = barycentric / <span class="hljs-built_in">float3</span>(position_a.w, position_b.w, position_c.w) * z;<br><br>        float2 vertex_uv_a = <span class="hljs-built_in">asfloat</span>(global_vertex_uv_buffer.<span class="hljs-built_in">Load2</span>((start_vertex_location + indices.x) * <span class="hljs-number">2</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 2 * sizeof(float)*/</span>));<br>        float2 vertex_uv_b = <span class="hljs-built_in">asfloat</span>(global_vertex_uv_buffer.<span class="hljs-built_in">Load2</span>((start_vertex_location + indices.y) * <span class="hljs-number">2</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 2 * sizeof(float)*/</span>));<br>        float2 vertex_uv_c = <span class="hljs-built_in">asfloat</span>(global_vertex_uv_buffer.<span class="hljs-built_in">Load2</span>((start_vertex_location + indices.z) * <span class="hljs-number">2</span> * <span class="hljs-number">4</span> <span class="hljs-comment">/* 2 * sizeof(float)*/</span>));<br><br>        float2 pix_uv = vertex_uv_a * barycentric.x + vertex_uv_b * barycentric.y + vertex_uv_c * barycentric.z;<br>        float4 baseColor = baseColorTexture.<span class="hljs-built_in">Sample</span>(baseColorSampler, pix_uv);<br>        output_color = <span class="hljs-built_in">float4</span>(baseColor.xyz, <span class="hljs-number">1.0</span>);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Bellow is the SimNanite final result:</p>
+<p align="center">
+    <img src="/resource/simnanite/image/final0.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p align="center">
+    <img src="/resource/simnanite/image/final1.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p><a target="_blank" rel="noopener" href="https://github.com/ShawnTSH1229/SimNanite"><u><strong>simplified nanite code</strong></u></a></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/My-Projects/" class="category-chain-item">My Projects</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Simplified Nanite In MiniEngine</div>
+      <div>http://example.com/2024/05/08/Simplified-Nanite-Virtualized-Geometry-In-MiniEngine/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Shawn Tang</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>May 8, 2024</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2024/05/18/Simplified-Lumen-GI-In-MiniEngine/" title="Simplified Lumen GI In MiniEngine">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Simplified Lumen GI In MiniEngine</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2024/05/05/Sky-Atmosphere-In-XEngine/" title="Sky Atmosphere In XEngine">
+                        <span class="hidden-mobile">Sky Atmosphere In XEngine</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>Table of Contents</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>
