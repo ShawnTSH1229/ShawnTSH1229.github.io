@@ -1,0 +1,773 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Shawn Tang">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="Acceleration Structure ConstructionBoth DXR and Vulkan RayTracing use bounding volume hierarchies (BVH) as acceleration structure, which is also commonly used for offline ray tracing. BVH is an object">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bindless Vulkan Ray Tracing In Cry Engine">
+<meta property="og:url" content="http://example.com/2024/06/30/Bindless-Vulkan-Ray-Tracing-In-Cry-Engine/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="Acceleration Structure ConstructionBoth DXR and Vulkan RayTracing use bounding volume hierarchies (BVH) as acceleration structure, which is also commonly used for offline ray tracing. BVH is an object">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/resource/vkraytracing/image/redraid.png">
+<meta property="article:published_time" content="2024-06-30T13:32:51.000Z">
+<meta property="article:modified_time" content="2024-07-04T15:02:38.223Z">
+<meta property="article:author" content="Shawn Tang">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/resource/vkraytracing/image/redraid.png">
+  
+  
+  
+  <title>Bindless Vulkan Ray Tracing In Cry Engine - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.7","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":10},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>ShawnTSH1229</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>Home</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>Archives</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>Categories</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>About</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Bindless Vulkan Ray Tracing In Cry Engine"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-06-30 21:32" pubdate>
+          June 30, 2024 pm
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          2k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          17 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">Bindless Vulkan Ray Tracing In Cry Engine</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Acceleration-Structure-Construction"><a href="#Acceleration-Structure-Construction" class="headerlink" title="Acceleration Structure Construction"></a>Acceleration Structure Construction</h1><p>Both DXR and Vulkan RayTracing use bounding volume hierarchies (BVH) as acceleration structure, which is also commonly used for offline ray tracing. BVH is an object partition data structure. It has more advantages than space partition (BSP-Tree,Octree,etc). One advantage of BVH is that the scene can be rebuilt easily for dynamic objects: just recompute the leaf node based on the current geometry. Additionally, the two-level acceleration structure employed in the current raytracing API can optimize rigid body animation further: only update the transform matrix without the expensive bottom-level acceleration structure update. Another advantage of BVH is that the maximum size used is known, as the number of leaves is limited</p>
+<h2 id="Two-Level-Acceleration-Structure"><a href="#Two-Level-Acceleration-Structure" class="headerlink" title="Two-Level Acceleration Structure"></a>Two-Level Acceleration Structure</h2><p>Vulkan uses a two-level acceleration structure to accelerate scene transversal and ray intersections. The bottom-level acceleration structure (BLAS) contains a set of geometries. In the Vulkan API, we can set two types of geometries: triangles or procedural. The former type contains a set of triangles, that is, actual vertex data and index data. Additionally, the BLAS with triangle geometry type contains AABB to encapsulate the geometry after it has been built. For the later geometry type, we should specify AABBs and the associated intersection function such as the ray-sphere test function. In practice, we prefer using triangle geometry, since both triangles and AABBs are hardware accelerated, but the procedural type involves additional user defined intersection functions in a shader, which is slower</p>
+<p>The top-level acceleration structure (TLAS) consists of instances that reference the BLAS. And each instance contains a transform. We can only update the instance transform of TLAS for rigid-body animation</p>
+<h2 id="Top-level-Acceleration-Structure-Construction"><a href="#Top-level-Acceleration-Structure-Construction" class="headerlink" title="Top-level Acceleration Structure Construction"></a>Top-level Acceleration Structure Construction</h2><h3 id="The-Trade-Offs-of-Acceleration-Structure-Building"><a href="#The-Trade-Offs-of-Acceleration-Structure-Building" class="headerlink" title="The Trade-Offs of Acceleration Structure Building"></a>The Trade-Offs of Acceleration Structure Building</h3><p>The driver is responsible for scheduling construction tasks after requesting the acceleration structure building. And the highly parallel work (calculate AABB, sort, etc) can accelerated by GPU. In addition, AS management (build&#x2F;updata) can be moved to an async compute queue, which could completely hide the cost in many cases. AS management is essentialy software-based work, which allows the driver to optimize its construction algorithm continuously.</p>
+<p>Vulkan exposed three build options to AS management:<br>For the PREFER_FAST_TRACE bit, the driver should choose the algorithm with better runtime transversal efficiency.<br>For the PREFER_FAST_BUILD bit, the driver should choose the algorithm with a faster construction rate.<br>For the default option, driver should choose a compromise solution with a balance between trace and build speed.<br>Generally, we employ PREFER_FAST_BUILD for BLAS, as well as PREFER_FAST_TRACE for TLAS.</p>
+<p>Ray tracing has more geometries in GPU memory than traditional rasterization methods. Vulkan has provided additional options for compacting the acceleration structure. Generally, we only compact BLAS, since it has more geometry data than TLAS</p>
+<p>What is the algorithm implemented in the driver behind the AS build options? There are three algorithms corresponding to PREFER_FAST_TRACE, PREFER_FAST_BUILD and the default option.</p>
+<p>The first algorithm is called LBVH (Linear BVH). It uses linear ordering derived from spatial Morton codes to build hierarchies extremely quickly and with high parallel scalability.</p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/LBVH.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>LBVH is a simple split method and can’t guarantee the BVH build quality. SAH is a more commonly used algorithm. It’s a heuristic algorithm. It splits the scene meshes based on surface area. However, SAH needs to iterate all scene meshes during construction and take a lot of time during BVH construction.</p>
+<p>Binning-SAH is an optimized version of the SAH algorithm. The idea is to divide the node bounding box equally in a certain dimension K (such as 32), and then take the (K-1) equal points as the segmentation boundary (divide the triangles on both sides into two child nodes) to calculate (K-1) costs, and take the segment with the smallest cost. When splitting BVH nodes in complex scenarios, K is much smaller than N. Of course, the final partition might just be a suboptimal solution.</p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/Bin-SAH.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>When there are unevenly sized triangles in the scene, the bounding boxes of the two child nodes after Binning SAH segmentation may overlap. This causes it to cost across both child nodes.</p>
+<p>Spatial-split SAH is an algorithm to further improve the quality of binning SAH by eliminating the overlap problem, the idea being to allow the same triangle to enter two child nodes. For each node, Binning SAH is first used to find the optimal segmentation. If there is no overlap of bounding boxes between the two child nodes separated by Binning SAH, then the segmentation ends. </p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/SplitSAH.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>Otherwise, perform spatial-split, and the splitting step is as follows: split the node bounding box into K equal parts in a certain dimension. At (K-1) dividing points, any triangle is divided into the left node as long as some of the bounding box is on the left side of the dividing point. The right node as long as some is on the right side of the dividing point. Calculate the above (K-1) costs and take the partition with the smallest cost. If the cost is smaller than that of Binning SAH, then the Spatial-Split result is adopted.</p>
+<h3 id="AMD-TLAS-Rebraid"><a href="#AMD-TLAS-Rebraid" class="headerlink" title="AMD TLAS Rebraid"></a>AMD TLAS Rebraid</h3><p>In AMD’s implementation, if the TLAS is built without the AllowUpdate flag, AMD GPURT will perform rebraid to improve the TLAS construction quality.</p>
+<p>From AMD GPURT source code:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> ((Util::<span class="hljs-built_in">TestAnyFlagSet</span>(m_buildArgs.inputs.flags, AccelStructBuildFlagAllowUpdate) == <span class="hljs-literal">false</span>) &amp;&amp;<br>    m_buildConfig.topLevelBuild)<br>&#123;<br>    <span class="hljs-keyword">if</span> (m_buildConfig.rebraidType == RebraidType::V1)<br>    &#123;<br>        <span class="hljs-comment">// inputs &gt; maxTopDownBuildInstances turn off rebraid</span><br>        <span class="hljs-keyword">if</span> (m_buildConfig.topDownBuild == <span class="hljs-literal">false</span>)<br>        &#123;<br>            m_buildConfig.rebraidType = RebraidType::Off;<br>        &#125;<br>    &#125;<br>    <span class="hljs-keyword">else</span><br>    &#123;<br>        m_buildConfig.rebraidType = m_buildConfig.rebraidType;<br>    &#125;<br>&#125;<br><span class="hljs-keyword">else</span><br>&#123;<br>    m_buildConfig.rebraidType = RebraidType::Off;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>two objects (green and blue), each with their own BVH; with their topologies (top), and their spatial extents (bottom). As the objects spatially overlap and the top-level BVH (brown) has to treat them as monolithic entities a significant BVH node overlap in the spatial domain occurs, leading to low traversal performance. (b) Our method allows the top-level BVH to look into the object BVHs, and to “open up” object nodes where appropriate. This allows the top-level BVH to create new top-level nodes (brown) that address individual subtrees in the object BVHs, resulting in improved BVH quality<br>——from Improved Two-Level BVHs using Partial Re-Braiding</p>
+</blockquote>
+<p align="center">
+    <img src="/resource/vkraytracing/image/redraid.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>The core idea of rebraid is to:<br>1.start with object BVHs in the same way a traditional twolevel BVH would;<br>2.find a suitable “cut” through each object’s BVH such that the resulting set of BVH subtrees has low(er) overlap;<br>3.build a top-level BVH over those resulting subtrees.</p>
+<h2 id="Bottom-level-Acceleration-Structure-Construction"><a href="#Bottom-level-Acceleration-Structure-Construction" class="headerlink" title="Bottom-level Acceleration Structure Construction"></a>Bottom-level Acceleration Structure Construction</h2><p>Bottom-level acceleration structure construction is divided into three steps: construct the create information, create the acceleration structure and build the acceleration structure.</p>
+<h3 id="Construct-the-create-information"><a href="#Construct-the-create-information" class="headerlink" title="Construct the create information"></a>Construct the create information</h3><p>In order to create an acceleration structure, we must obtain the size information of the acceleration structure by calling vkGetAccelerationStructureBuildSizesKHR, and then create the acceleration structure buffer with the calculated size. Next, call vkCreateAccelerationStructureKHR with the structure creation information, and store the result in accelerationStructureHandle. It is also necessary to obtain the device address of accelerationStructureHandle. This parameter is required in the next TLAS construction.</p>
+<p>It should be noted that a new flag (USAGE_ACCELERATION_STRUCTURE) should be added to the creation of the acceleration structure buffer. It corresponds to XXX_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR in my implementation, which indicates this buffer is suitable for use as a read-only input to an acceleration structure build.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs cpp">m_sSizeInfo = <span class="hljs-built_in">GetDeviceObjectFactory</span>().<span class="hljs-built_in">GetRayTracingBottomLevelASSize</span>(rtBottomLevelCreateInfo);<br><br>m_accelerationStructureBuffer.<span class="hljs-built_in">Create</span>(<span class="hljs-number">1u</span>, <span class="hljs-built_in">static_cast</span>&lt;uint32&gt;(m_sSizeInfo.m_nAccelerationStructureSize), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_ACCELERATION_STRUCTURE, <span class="hljs-literal">nullptr</span>);<br><br>VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = &#123; VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR &#125;;<br>accelerationStructureCreateInfo.buffer = m_accelerationStructureBuffer.<span class="hljs-built_in">GetDevBuffer</span>()-&gt;<span class="hljs-built_in">GetBuffer</span>()-&gt;<span class="hljs-built_in">GetHandle</span>();<br>accelerationStructureCreateInfo.offset = <span class="hljs-number">0</span>;<br>accelerationStructureCreateInfo.size = m_sSizeInfo.m_nAccelerationStructureSize;<br>accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;<br><br>Extensions::KHR_acceleration_structure::<span class="hljs-built_in">vkCreateAccelerationStructureKHR</span>(m_pDevice-&gt;<span class="hljs-built_in">GetVkDevice</span>(), &amp;accelerationStructureCreateInfo, <span class="hljs-literal">nullptr</span>, &amp;accelerationStructureHandle);<br><br>VkAccelerationStructureDeviceAddressInfoKHR deviceAddressInfo = &#123; VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR &#125;;<br>deviceAddressInfo.accelerationStructure = accelerationStructureHandle;<br>accelerationStructureDeviceAddress = Extensions::KHR_acceleration_structure::<span class="hljs-built_in">vkGetAccelerationStructureDeviceAddressKHR</span>(m_pDevice-&gt;<span class="hljs-built_in">GetVkDevice</span>(), &amp;deviceAddressInfo);<br></code></pre></td></tr></table></figure>
+<p>One of the advantages of BVH over space partitioning is that the structure size is known. Once the required data (vertex&#x2F;index buffer, format, stride, etc) is ready, we can query the size of bottom-level acceleration structure information. The shape and type of the acceleration structure to be created is described in the VkAccelerationStructureBuildGeometryInfoKHR structure. This is the same structure that will later be used for the actual build, but the acceleration structure parameters and geometry data pointers do not need to be fully populated at this point (although they can be), just the acceleration structure type, and the geometry types, counts, and maximum sizes. These sizes are valid for any sufficiently similar acceleration structure.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title">GetBottomLevelAccelerationStructureBuildInfo</span><span class="hljs-params">(</span></span><br><span class="hljs-params"><span class="hljs-function">	<span class="hljs-type">const</span> VkDevice* pVkDevice,</span></span><br><span class="hljs-params"><span class="hljs-function">	<span class="hljs-type">const</span> std::vector&lt;SRayTracingGeometryTriangle&gt;&amp; rtGeometryTriangles,</span></span><br><span class="hljs-params"><span class="hljs-function">	<span class="hljs-type">const</span> SRayTracingBottomLevelASCreateInfo::STriangleIndexInfo&amp; sSTriangleIndexInfo,</span></span><br><span class="hljs-params"><span class="hljs-function">	EBuildAccelerationStructureFlag eBuildFlag,</span></span><br><span class="hljs-params"><span class="hljs-function">	EBuildAccelerationStructureMode eBuildMode,</span></span><br><span class="hljs-params"><span class="hljs-function">	SVulkanRayTracingBLASBuildInfo&amp; outvkRtBLASBuildInfo)</span></span><br><span class="hljs-function"></span>&#123;<br>	std::vector&lt;uint32&gt; maxPrimitiveCounts;<br>	<span class="hljs-keyword">for</span> (uint32 index = <span class="hljs-number">0</span>; index &lt; rtGeometryTriangles.<span class="hljs-built_in">size</span>(); index++)<br>	&#123;<br>		<span class="hljs-type">const</span> SRayTracingGeometryTriangle&amp; rayTracingGeometryTriangle = rtGeometryTriangles[index];<br>		VkDeviceAddress vertexDeviceAddress = <span class="hljs-built_in">InputStreamGetBufferDeviceAddress</span>(xxxxxx);<br><br>		VkAccelerationStructureGeometryKHR accelerationStructureGeometry = &#123; VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR &#125;;<br>		......<br>		accelerationStructureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;<br>		accelerationStructureGeometry.geometry.triangles = xxx;<br>		outvkRtBLASBuildInfo.m_vkRtGeometryTrianglesInfo.<span class="hljs-built_in">push_back</span>(accelerationStructureGeometry);<br><br>		VkAccelerationStructureBuildRangeInfoKHR RangeInfo = &#123;&#125;;<br>		outvkRtBLASBuildInfo.m_vkAsBuildRangeInfo.<span class="hljs-built_in">push_back</span>(RangeInfo);<br><br>		maxPrimitiveCounts.<span class="hljs-built_in">push_back</span>(rayTracingGeometryTriangle.m_sTriangVertexleInfo.m_nMaxVertex);<br>	&#125;<br><br>	outvkRtBLASBuildInfo.m_vkAsBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;<br>	......<br>	outvkRtBLASBuildInfo.m_vkAsBuildGeometryInfo.pGeometries = outvkRtBLASBuildInfo.m_vkRtGeometryTrianglesInfo.<span class="hljs-built_in">data</span>();<br>	Extensions::KHR_acceleration_structure::<span class="hljs-built_in">vkGetAccelerationStructureBuildSizesKHR</span>(*pVkDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &amp;outvkRtBLASBuildInfo.m_vkAsBuildGeometryInfo, maxPrimitiveCounts.<span class="hljs-built_in">data</span>(), &amp;outvkRtBLASBuildInfo.m_vkAsBuildSizeInfo);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>GetBottomLevelAccelerationStructureBuildInfo is a shared function between creating and building BLAS, which is the same as VkAccelerationStructureBuildGeometryInfoKHR. From this function, we can obtain the size for Create BLAS and the build information for Build BLAS.</p>
+<h3 id="Build-BLAS"><a href="#Build-BLAS" class="headerlink" title="Build BLAS"></a>Build BLAS</h3><p>We construct the acceleration structure in batch mode by gathering all of the BLAS of each geometry and composing them into an array.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp">std::vector&lt;CRayTracingBottomLevelAccelerationStructurePtr&gt; rtBottomLevelASPtrs;<br><span class="hljs-keyword">for</span> (uint32 index = <span class="hljs-number">0</span>; index &lt; m_nObjectNum; index++)<br>&#123;<br>	rtBottomLevelASPtrs.<span class="hljs-built_in">push_back</span>(m_objectGeometry[index]-&gt;m_pRtBottomLevelAS);<br>&#125;<br>	<br>pCommandInterface-&gt;<span class="hljs-built_in">BuildRayTracingBottomLevelASs</span>(rtBottomLevelASPtrs);<br></code></pre></td></tr></table></figure>
+<p>In acceleration structure building, scratch buffers are required, but they are not used in ray tracing because acceleration structure buffers require more information, such as AABBs. These extra data are generated in VKCMDBuildAccelerationStructuresKHR. Therefore, the scratch buffer keeps temporary data, which can be released after building.Each BLAS in a batch can share a single scratch buffer, whose size is the total size of all the BLAS.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint64 nTotalScratchBufferSize = <span class="hljs-number">0</span>;<br><span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; blas : rtBottomLevelASPtrs)<br>&#123;<br>	nTotalScratchBufferSize += blas-&gt;m_sSizeInfo.m_nBuildScratchSize;<br>&#125;<br><br>CGpuBuffer scratchBuffer;<br>scratchBuffer.<span class="hljs-built_in">Create</span>(<span class="hljs-number">1u</span>, <span class="hljs-built_in">static_cast</span>&lt;uint32&gt;(nTotalScratchBufferSize), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_UNORDERED_ACCESS, <span class="hljs-literal">nullptr</span>);<br></code></pre></td></tr></table></figure>
+<p>Lastly, obtain the acceleration structure building geometry information, specify the scratch buffer device address, and build the acceleration structure in batches.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs cpp">std::vector&lt;SVulkanRayTracingBLASBuildInfo&gt; tempBuildInfos;<br>std::vector&lt;VkAccelerationStructureBuildGeometryInfoKHR&gt; buildGeometryInfos;<br>std::vector&lt;VkAccelerationStructureBuildRangeInfoKHR*&gt; buildRangeInfos;<br><br>uint64 nScratchBufferOffset = <span class="hljs-number">0</span>;<br><span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; blas : rtBottomLevelASPtrs)<br>&#123;<br>	tempBuildInfos.<span class="hljs-built_in">push_back</span>(<span class="hljs-built_in">SVulkanRayTracingBLASBuildInfo</span>());<br>	SVulkanRayTracingBLASBuildInfo&amp; vkRtBLASBuildInfo = tempBuildInfos[tempBuildInfos.<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span>];<br><br>	<span class="hljs-built_in">GetBottomLevelAccelerationStructureBuildInfo</span>(xxxxxx, vkRtBLASBuildInfo);<br><br>	VkBufferDeviceAddressInfo bufferDeviceAddressInfo = &#123; VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO &#125;;<br>	bufferDeviceAddressInfo.buffer = scratchBuffer.<span class="hljs-built_in">GetDevBuffer</span>()-&gt;<span class="hljs-built_in">GetBuffer</span>()-&gt;<span class="hljs-built_in">GetHandle</span>();<br>	VkDeviceAddress scratchBufferAddress = <span class="hljs-built_in">vkGetBufferDeviceAddress</span>(<span class="hljs-built_in">GetDevice</span>()-&gt;<span class="hljs-built_in">GetVkDevice</span>(), &amp;bufferDeviceAddressInfo) + nScratchBufferOffset;<br>	nScratchBufferOffset += blas-&gt;m_sSizeInfo.m_nBuildScratchSize;<br><br>	CVulkanRayTracingBottomLevelAccelerationStructure* vkRtBLAS = <span class="hljs-built_in">static_cast</span>&lt;CVulkanRayTracingBottomLevelAccelerationStructure*&gt;(blas.<span class="hljs-built_in">get</span>());<br>	vkRtBLASBuildInfo.m_vkAsBuildGeometryInfo.dstAccelerationStructure = vkRtBLAS-&gt;accelerationStructureHandle;<br>	vkRtBLASBuildInfo.m_vkAsBuildGeometryInfo.srcAccelerationStructure = <span class="hljs-literal">nullptr</span>;<br>	vkRtBLASBuildInfo.m_vkAsBuildGeometryInfo.scratchData.deviceAddress = scratchBufferAddress;<br><br>	buildGeometryInfos.<span class="hljs-built_in">push_back</span>(vkRtBLASBuildInfo.m_vkAsBuildGeometryInfo);<br>	buildRangeInfos.<span class="hljs-built_in">push_back</span>(vkRtBLASBuildInfo.m_vkAsBuildRangeInfo.<span class="hljs-built_in">data</span>());<br>&#125;<br><br>VkCommandBuffer cmdBuffer = <span class="hljs-built_in">GetVKCommandList</span>()-&gt;<span class="hljs-built_in">GetVkCommandList</span>();<br>Extensions::KHR_acceleration_structure::<span class="hljs-built_in">vkCmdBuildAccelerationStructuresKHR</span>(cmdBuffer, rtBottomLevelASPtrs.<span class="hljs-built_in">size</span>(), buildGeometryInfos.<span class="hljs-built_in">data</span>(), buildRangeInfos.<span class="hljs-built_in">data</span>());<br></code></pre></td></tr></table></figure>
+<h1 id="Ray-Tracing-Shader-Cross-Compile"><a href="#Ray-Tracing-Shader-Cross-Compile" class="headerlink" title="Ray Tracing Shader Cross Compile"></a>Ray Tracing Shader Cross Compile</h1><p>Add vulkan ray tracing shader support for cry engine.</p>
+<h2 id="Add-Token"><a href="#Add-Token" class="headerlink" title="Add Token"></a>Add Token</h2><p>Cry Engine will initialize all shaders in the ‘mfInitShadersList’ function during Engine initialization. We need to add the tokens related to the ray tracing that are not supported by the Cry Engine parser. In Cry Engine, the token is parsed in the ‘m_Bin.GetBinShader-&gt;SaveBinShader’  function. To invoke this breakpoint, you need to delete the shader cache located in <code>user\shaders\cache\vulkan</code>. The core of this function is the following three steps:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint32 dwToken = CParserBin::<span class="hljs-built_in">NextToken</span>(buf, com, bKey);<br>dwToken = Parser.<span class="hljs-built_in">NewUserToken</span>(dwToken, com, <span class="hljs-literal">false</span>);<br>pBin-&gt;m_Tokens.<span class="hljs-built_in">push_back</span>(dwToken);<br></code></pre></td></tr></table></figure>
+<p>The <code>NextToken</code> function parses the tokens that exist in the g_KeyTokens table. The <code>NewUserToken</code> function inserts the unknown token into the token table. The value of these unknown tokens is generated by CRC.<br>Following are the tokens used in the vulkan ray tracing shader:</p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/tokens_added.png" srcset="/img/loading.gif" lazyload width="75%" height="75%">
+</p>
+
+<p><code>RaytracingAccelerationStructure</code>: used for acceleration structure.<br><code>[shader(&quot;raygeneration&quot;)]</code>: used for shader type determination.</p>
+<p>Tokens related to shader techniques: Shader technique is unique to Cry Engine. It is similar to the PSO, which indicates the shaders and the render state (depth state, blend state, etc).</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs cpp">technique XXX<br>&#123;<br>  pass XXX<br>  &#123;<br>    VertexShader = <span class="hljs-built_in">XX_VS</span>();<br>    PixelShader = <span class="hljs-built_in">XX_PS</span>();<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Cry Engine only supports one shader entry for each shader type for each pass. For example, a pass may have two entries (camera close hit and shader close hit shader) for close hit shader type. We need to support multi-entry shader type.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs cpp">technique RayTracingTest<br>&#123;<br>  pass p0<br>  &#123;<br>    RayGenShaders = &#123;<span class="hljs-built_in">RayGenMain</span>()&#125;;<br>    HitGroupShaders = &#123;<span class="hljs-built_in">ClostHitMain</span>()&#125;;<br>    MissShaders = &#123;<span class="hljs-built_in">MissMain</span>()&#125;;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h2 id="Parse"><a href="#Parse" class="headerlink" title="Parse"></a>Parse</h2><p>Cry Engine parses the dummy shader first and skips all tokens except those related to the “technique”. During this process, Cry Engine enumerates all the shaders in the public techniques.Following are the tokens used in the dummy shader parser:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-built_in">FX_TOKEN</span>(RaytracingAccelerationStructure)<br><span class="hljs-built_in">FX_TOKEN</span>(shader)<br><span class="hljs-built_in">FX_TOKEN</span>(raygeneration)<br><span class="hljs-built_in">FX_TOKEN</span>(closesthit)<br><span class="hljs-built_in">FX_TOKEN</span>(miss)<br><span class="hljs-built_in">FX_TOKEN</span>(RayGenShaders)<br><span class="hljs-built_in">FX_TOKEN</span>(HitGroupShaders)<br><span class="hljs-built_in">FX_TOKEN</span>(MissShaders)<br><span class="hljs-built_in">FX_TOKEN</span>(vk)<br><span class="hljs-built_in">FX_TOKEN</span>(binding)<br></code></pre></td></tr></table></figure>
+<p>Parse’s core function is <code>ParseObject</code>, which consists mainly of two steps. The first step is <code>GetNextToken</code>, where the next token is obtained. In addition, the more important part of Parse is to parse code fragments, such as preprocessed fragments or function code fragments. It also stores the function name, which is used to find the shader name later when parsing tech. In after parsing the code fragment, can be in ParseObject parse all code snippets of all statements, the Token is divided into the Name&#x2F;Assign&#x2F;Value&#x2F;Data&#x2F;Annotations type, These sub-SParserFrame in turn form a large ParserFrame based on, for example, semicolons, meaning that a code fragment contains multiple parse fragments, a <code>CF</code> (Code Fragment) may be a function, and a <code>PF</code> (Parse Fragment) may be an assignment or declaration statement.</p>
+<p>And then re-initialize. The <code>mfLoadDefaultSystemShaders</code> function loads shader: <code>sLoadShader (&quot; RayTracingTestShader &quot;s shRayTracingTest)</code>; And through the <code>RT_ParseShaderCShaderManBin::ParseBinFX</code> parsed Tokens, such as <code>texture</code>, <code>float</code>, <code>struct</code>, can parse and load or create a shader.</p>
+<p>When parsing technique, CE does not support ray tracing shader. We added support for ray tracing shader in the <code>ParseBinFX_Technique_Pass_LoadShaders_RayTracing</code> function:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">TArray&lt;uint32&gt; <span class="hljs-title">SHData</span><span class="hljs-params">(<span class="hljs-number">0</span>, SHDataBuffer.Size())</span></span>;<br>SHData.<span class="hljs-built_in">Copy</span>(SHDataBuffer.<span class="hljs-built_in">GetElements</span>(), SHDataBuffer.<span class="hljs-built_in">size</span>());<br><br>CHWShader* pSH = <span class="hljs-literal">NULL</span>;<br><span class="hljs-type">bool</span> bValidShader = <span class="hljs-literal">false</span>;<br><br><span class="hljs-keyword">if</span> (bRes &amp;&amp; (!CParserBin::m_bParseFX || !SHData.<span class="hljs-built_in">empty</span>() || szName[<span class="hljs-number">0</span>] == <span class="hljs-string">&#x27;$&#x27;</span>))<br>&#123;<br>	<span class="hljs-type">char</span> str[<span class="hljs-number">1024</span>];<br>	<span class="hljs-built_in">cry_sprintf</span>(str, <span class="hljs-string">&quot;%s@%s&quot;</span>, Parser.m_pCurShader-&gt;m_NameShader.<span class="hljs-built_in">c_str</span>(), szName);<br>	pSH = CHWShader::<span class="hljs-built_in">mfForName</span>(str, Parser.m_pCurShader-&gt;m_NameFile, Parser.m_pCurShader-&gt;m_CRC32, szName, eSHClass, SHData, Parser.m_TokenTable, dwSHType, Parser.m_pCurShader, nGenMask, Parser.m_pCurShader-&gt;m_nMaskGenFX);<br>&#125;<br><span class="hljs-keyword">if</span> (pSH)<br>&#123;<br>	bValidShader = <span class="hljs-literal">true</span>;<br><br>	<span class="hljs-keyword">if</span> (CParserBin::<span class="hljs-built_in">PlatformSupportsRayTracingShaders</span>() &amp;&amp; eSHClass == eHWSC_RayGen)<br>		pPass-&gt;m_RGShaders.<span class="hljs-built_in">push_back</span>(pSH);<br>	<span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (CParserBin::<span class="hljs-built_in">PlatformSupportsRayTracingShaders</span>() &amp;&amp; eSHClass == eHWSC_HitGroup)<br>		pPass-&gt;m_HGShaders.<span class="hljs-built_in">push_back</span>(pSH);<br>	<span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (CParserBin::<span class="hljs-built_in">PlatformSupportsRayTracingShaders</span>() &amp;&amp; eSHClass == eHWSC_RayMiss)<br>		pPass-&gt;m_RMShaders.<span class="hljs-built_in">push_back</span>(pSH);<br>	<span class="hljs-keyword">else</span><br>		<span class="hljs-built_in">CryLog</span>(<span class="hljs-string">&quot;Unsupported/unrecognised shader: %s[%d]&quot;</span>, pSH-&gt;m_Name.<span class="hljs-built_in">c_str</span>(), eSHClass);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>We added support for shader types with multi shader entry:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs cpp">technique BindlessRayTracingTestTech<br>&#123;<br>  pass p0<br>  &#123;<br>    <span class="hljs-comment">// other ray tracing shaders</span><br>    MissShaders = &#123;<span class="hljs-built_in">MissMain</span>(),<span class="hljs-built_in">ShadowMiassMain</span>()&#125;;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>The shader entries are split by the comma token:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (pTokens[nCur] == eT_comma)<br>&#123;<br>	nCur++;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>CE technique supports only one shader, while the ray tracing shader consists of a series of shader tables. We need to add the parse and loading functions of shader tables specifically. We specify that all shaders of the same class in raytracing are placed in an array by {}, and then begin parsing shader binding table by <code>&#123;</code> token. At the same time, <code>SShaderPass</code> is extended to support multiple stores for each shader</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">SShaderPass</span><br>&#123;<br>  CHWShader*  m_VShader;        <span class="hljs-comment">// Pointer to the vertex shader for the current pass</span><br>  <span class="hljs-comment">//...... Other shader s</span><br><br>  std::vector&lt;CHWShader*&gt; m_RGShaders; <span class="hljs-comment">// Pointers to ray gen shader</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Stored in an array after the <code>CHWShader</code> is parsed and created:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">pPass-&gt;m_RGShaders.<span class="hljs-built_in">push_back</span>(pSH);<br></code></pre></td></tr></table></figure>
+
+<h2 id="Cross-Compile"><a href="#Cross-Compile" class="headerlink" title="Cross Compile"></a>Cross Compile</h2><p>The next step is to create the shader (while creating the PSO), first get the shader from technique, and then check whether the shader is active based on the shader information. If it is not in the active state (CHWShader_D3D::mfActivate), <code>mfCompileHLSL</code> is called to trigger shader compilation. For debugging purposes, We’ve turned off asynchronous shader compiling for CE: <code>CV_r_shadersasynccompiling</code></p>
+<p>Ray tracing shader target is different from common shaders:</p>
+<blockquote>
+<p>These shaders are functions compiled into a library, with target model lib_6_3, and identified by an attribute [shader(“shadertype”)] on the shader function</p>
+</blockquote>
+<p>Set target to <code>lib 6_3</code>:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">case</span> eHWSC_RayGen:<br><span class="hljs-keyword">case</span> eHWSC_RayMiss:<br><span class="hljs-keyword">case</span> eHWSC_HitGroup:<br>	<span class="hljs-keyword">if</span> (CParserBin::<span class="hljs-built_in">PlatformSupportsRayTracingShaders</span>())<br>	&#123;<br>		szProfile = <span class="hljs-string">&quot;lib_6_3&quot;</span>;<br>	&#125;<br>	<span class="hljs-keyword">break</span>;<br></code></pre></td></tr></table></figure>
+<p>What’s more, the DXC version of CE is older, and we need to upgrade it to the new version. In addition, you need to upgrade the version of spirv cross, otherwise shader reflection process will crash.</p>
+<p>In addition, we need to revamp the reflection part of CE-spirv to support spirv’s reflection. Once we have the compiled data we need to create vulkan raytracing shader in <code>mfUploadHW</code> function.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">/*</span><br><span class="hljs-comment">BwAAAGxpYl82XzMACgAAAFJheUdlbk1haW4AAAEDHA0AAEBAHA0AAEBBHA0AAMBAAAAAAAAAAAA=</span><br><span class="hljs-comment">*/</span><br><br><span class="hljs-keyword">struct</span> <span class="hljs-title class_">FBasicRayData</span><br>&#123;<br>  float3 Origin;<br>  uint Mask;<br>  float3 Direction;<br>  <span class="hljs-type">float</span> TFar;<br>&#125;;<br><span class="hljs-keyword">struct</span> <span class="hljs-title class_">FDefaultPayload</span><br>&#123;<br>  <span class="hljs-type">float</span> HitT;<br>  uint PrimitiveIndex;<br>  uint InstanceIndex;<br>  float2 Barycentrics;<br>  uint InstanceID;<br>&#125;;<br>RaytracingAccelerationStructure TLAS:<span class="hljs-built_in">register</span>(t0);<br>StructuredBuffer&lt;FBasicRayData&gt;Rays:<span class="hljs-built_in">register</span>(t1);<br>RWStructuredBuffer&lt;uint&gt;OcclusionOutput:<span class="hljs-built_in">register</span>(u0);<br>[<span class="hljs-built_in">shader</span>(<span class="hljs-string">&quot;raygeneration&quot;</span>)]<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">RayGenMain</span><span class="hljs-params">()</span></span><br><span class="hljs-function"></span>&#123;<br>  <span class="hljs-type">const</span> uint RayIndex=<span class="hljs-built_in">DispatchRaysIndex</span>().x;<br>  FBasicRayData InputRay=Rays[RayIndex];<br>  RayDesc Ray;<br>  Ray.Origin=InputRay.Origin;<br>  Ray.Direction=InputRay.Direction;<br>  Ray.TMin=<span class="hljs-number">0.0f</span>;<br>  Ray.TMax=InputRay.TFar;<br>  uint RayFlags=<span class="hljs-number">0</span>|RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH|RAY_FLAG_FORCE_OPAQUE|RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;<br>  <span class="hljs-type">const</span> uint InstanceInclusionMask=<span class="hljs-number">0x01</span>;<br>  FDefaultPayload Payload=(FDefaultPayload)<span class="hljs-number">0</span>;<br>  <span class="hljs-built_in">TraceRay</span>(TLAS,RayFlags,InstanceInclusionMask,<span class="hljs-number">0</span>,<span class="hljs-number">2</span>,<span class="hljs-number">0</span>,Ray,Payload);<br>  OcclusionOutput[RayIndex]=(Payload.HitT&gt;<span class="hljs-number">0</span>)?~<span class="hljs-number">0</span>:<span class="hljs-number">0</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>The above is the input of the hlsl shader after parsing.  After compiling by DXC, we get the SPV result. We went through the spirv-cross to convert it to GLSL, and found that a conversion error occurred. After mapping, register t0 and u0 in HLSL have the same binding point:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-built_in">layout</span>(set = <span class="hljs-number">0</span>, binding = <span class="hljs-number">0</span>, std430) buffer type_RWStructuredBuffer_uint<br>&#123;<br>    uint _m0[];<br>&#125; OcclusionOutput;<br><br><span class="hljs-built_in">layout</span>(set = <span class="hljs-number">0</span>, binding = <span class="hljs-number">0</span>) uniform accelerationStructureEXT TLAS;<br></code></pre></td></tr></table></figure>
+<p>Here’s why the problem occurs:</p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/confict.png" srcset="/img/loading.gif" lazyload width="85%" height="85%">
+</p>
+
+<p>We solved the problem with <a target="_blank" rel="noopener" href="https://developer.nvidia.com/blog/bringing-hlsl-ray-tracing-to-vulkan/"><u><strong>[this blog]</strong></u></a>:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">[[vk::<span class="hljs-built_in">binding</span>(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)]] RaytracingAccelerationStructure topLevelAS;<br></code></pre></td></tr></table></figure>
+<p>It also needs  to tweak the parse section of the code to skip <code>[[vk::xxx]]</code></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (nToken == eT_br_sq_1)<br>&#123;<br>	<span class="hljs-keyword">if</span> (m_CurFrame.m_nCurToken + <span class="hljs-number">1</span> &lt;= m_CurFrame.m_nLastToken)<br>	&#123;<br>		<span class="hljs-keyword">if</span> (pTokens[m_CurFrame.m_nCurToken + <span class="hljs-number">1</span>] == eT_br_sq_1)<br>		&#123;<br>			int32 nLast1 = m_CurFrame.m_nCurToken + <span class="hljs-number">1</span>;<br>			<span class="hljs-keyword">while</span> (nLast1 &lt;= m_CurFrame.m_nLastToken &amp;&amp; pTokens[nLast1] != eT_br_sq_2)<br>			&#123;<br>				nLast1++;<br>			&#125;<br>			nLast1++;<br>			<span class="hljs-keyword">if</span> (nLast1 &lt;= m_CurFrame.m_nLastToken &amp;&amp; pTokens[nLast1] == eT_br_sq_2)<br>			&#123;<br>				SCodeFragment Fr;<br>				Fr.m_eType = eFT_StorageClass;<br>				Fr.m_nFirstToken = m_CurFrame.m_nCurToken;<br>				m_CurFrame.m_nCurToken = nLast1 + <span class="hljs-number">1</span>;<br>				<span class="hljs-keyword">while</span> (pTokens[m_CurFrame.m_nCurToken] != eT_semicolumn)<br>				&#123;<br>					<span class="hljs-keyword">if</span> (m_CurFrame.m_nCurToken + <span class="hljs-number">1</span> == nTokensSize)<br>						<span class="hljs-keyword">break</span>;<br>					m_CurFrame.m_nCurToken++;<br>				&#125;<br>				Fr.m_nLastToken = m_CurFrame.m_nCurToken++;<br>				Fr.m_dwName = pTokens[Fr.m_nLastToken - <span class="hljs-number">1</span>];<br>				m_CodeFragments.<span class="hljs-built_in">push_back</span>(Fr);<br>				<span class="hljs-keyword">continue</span>;<br>			&#125;<br>		&#125;<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h1 id="Ray-Tracing-Pipeline"><a href="#Ray-Tracing-Pipeline" class="headerlink" title="Ray Tracing Pipeline"></a>Ray Tracing Pipeline</h1><p>Cry Engine has three render passes: <code>CComputeRenderPass</code>, <code>CPrimitiveRenderPass</code> and <code>CSceneRenderPass</code>. We added a fourth render pass: ‘CrayTracingRenderPass’.</p>
+<h2 id="Compile-RenderPass"><a href="#Compile-RenderPass" class="headerlink" title="Compile RenderPass"></a>Compile RenderPass</h2><p>When the PSO or other resources are dirty, Cry Engine rebuilds the resource in the <code>Compile</code> function. We create the PSO and shader binding table in the <code>Compile</code> function.</p>
+<h2 id="Resource-Set"><a href="#Resource-Set" class="headerlink" title="Resource Set"></a>Resource Set</h2><p>In the cry engine, the slot information is specified in the resource set step. For example, <code>SetTexture</code> with slot 2 corresponds to <code>t2</code> in HLSL.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-keyword">inline</span> <span class="hljs-type">void</span> <span class="hljs-title">CRayTracingRenderPass::SetBuffer</span><span class="hljs-params">(uint32 slot, CGpuBuffer* pBuffer)</span></span><br><span class="hljs-function"></span>&#123;<br>	m_resourceDesc.<span class="hljs-built_in">SetBuffer</span>(slot, pBuffer, EDefaultResourceViews::Default, EShaderStage_RayTracing);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p><code>SResourceBindPoint</code> stores slot index, slot type and shader stages. These data are stored in <code>uint8</code> format and packed into a <code>uint32</code> variable thar will be used in state cache. <code>SResourceBinding</code> stores the resource and its view.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-keyword">inline</span> CDeviceResourceSetDesc::EDirtyFlags <span class="hljs-title">CDeviceResourceSetDesc::SetBuffer</span><span class="hljs-params">(<span class="hljs-type">int</span> shaderSlot, CGpuBuffer* pBuffer, ResourceViewHandle hView, ::EShaderStage shaderStages)</span></span><br><span class="hljs-function"></span>&#123;<br>	<span class="hljs-function">SResourceBinding <span class="hljs-title">resource</span><span class="hljs-params">(pBuffer, hView)</span></span>;<br>	<span class="hljs-function">SResourceBindPoint <span class="hljs-title">bindPoint</span><span class="hljs-params">(resource, shaderSlot, shaderStages)</span></span>;<br><br>	<span class="hljs-keyword">return</span> <span class="hljs-built_in">UpdateResource</span>&lt;SResourceBinding::EResourceType::Buffer&gt;(bindPoint, resource);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>When the resource layout is dirty, the layout needs to be rebuilt.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (dirtyMask &amp; (eDirty_Technique | eDirty_ResourceLayout))<br>&#123;<br>	<span class="hljs-type">int</span> bindSlot = <span class="hljs-number">0</span>;<br>	SDeviceResourceLayoutDesc resourceLayoutDesc;<br>	resourceLayoutDesc.m_needBindlessLayout = m_needBindless;<br>	resourceLayoutDesc.<span class="hljs-built_in">SetResourceSet</span>(bindSlot++, m_resourceDesc);<br>	m_pResourceLayout = <span class="hljs-built_in">GetDeviceObjectFactory</span>().<span class="hljs-built_in">CreateResourceLayout</span>(resourceLayoutDesc);<br><br>	<span class="hljs-keyword">if</span> (!m_pResourceLayout)<br>		<span class="hljs-keyword">return</span> (EDirtyFlags)(m_dirtyMask |= revertMask);<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>Cry engine stores layout information into the cache through <code>mfInsertNewCombination</code> and decodes it during engine initialization. We extended ‘mfInitShadersCache’ and <code>GetEncodedResourceLayoutSize</code> in order to support ray tracing layout encoding.</p>
+<p>During the engine initializes the layout, the cry engine decodes the binding information of the descriptor set through <code>EncodeDescriptorSet</code>. It includes the binding type and binding stage. This is used to map the DX binding to the Vulkan binding in the latter shader compiling process. We extended <code>GetShaderStageFlags</code> to support ray tracing. Cry engine uses the 6 bits of the uint8 to store the shader stage, which is not enough for ray tracing shader. We extended it to <code>uint32</code> format to support RayGen&#x2F;Miss&#x2F;Hit shader stages.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint8* stagesByte = (uint8*)(&amp;stages);<br><span class="hljs-keyword">for</span> (uint32 index = <span class="hljs-number">0</span>; index &lt; <span class="hljs-number">4</span>; index++)<br>&#123;<br>	result.<span class="hljs-built_in">push_back</span>(stagesByte[index]);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>We need to pass in this hash in the shader compiling function <code>GetRayTracingShaderInstanceInfo</code> so that we can look up the layout later.</p>
+<p>Add acceleration descriptor and descriptor pool support:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">poolSizes[<span class="hljs-number">8</span>].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;<br>poolSizes[<span class="hljs-number">8</span>].descriptorCount = accelerationStructureCount;<br></code></pre></td></tr></table></figure>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-built_in">uint8</span>(bindPoint.flags &amp; SResourceBindPoint::EFlags::IsAccelerationStructured))<br>&#123;<br>	<span class="hljs-keyword">return</span> VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h2 id="PSO-Creation"><a href="#PSO-Creation" class="headerlink" title="PSO Creation"></a>PSO Creation</h2><p>New structures related to PSO creation:<br>1.<code>CDeviceRayTracingPSODesc</code>: Contains construction information.<br>2.<code>CDeviceRayTracingPSO</code>: Stores ray tracing PSO.<br>3.<code>m_RayTracingPsoCache</code>: Pipeline state cache.</p>
+<p>Obtain and process the shader from the shader cache during PSO creation. It contains the following steps:<br>1.Get entry function name</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp">entryPointName.<span class="hljs-built_in">push_back</span>(rayGenInfo.pHwShader-&gt;m_EntryFunc);<br></code></pre></td></tr></table></figure>
+<p>2.Get the Vulkan shader module and create a shader stage. All stages are stored in a std::vector of VkPipelineShaderStageCreateInfo objects. At this step, indices within this vector will be used as unique identifiers for the shaders.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp">shaderStage.<span class="hljs-keyword">module</span> = <span class="hljs-built_in">reinterpret_cast</span>&lt;NCryVulkan::CShader*&gt;(rayGenInfo.pDeviceShader)-&gt;<span class="hljs-built_in">GetVulkanShader</span>();<br>shaderStage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;<br>shaderStage.pName = entryPointName.<span class="hljs-built_in">back</span>().<span class="hljs-built_in">data</span>();<br>shaderStages.<span class="hljs-built_in">push_back</span>(shaderStage);<br></code></pre></td></tr></table></figure>
+<p>3.Create the shader group. Shader groups specify the shader stage index. Ray generation and miss shaders are called <code>general</code> shaders. In this case the type is <code>VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR</code>, and only the generalShader member of the structure is filled</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp">VkRayTracingShaderGroupCreateInfoKHR shaderGroup = &#123; VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR &#125;;<br>shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;<br>shaderGroup.generalShader = shaderStages.<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span>;<span class="hljs-comment">//store general shader index</span><br>shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;<br>shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;<br>shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;<br>shaderGroups.<span class="hljs-built_in">push_back</span>(shaderGroup);<br></code></pre></td></tr></table></figure>
+<h2 id="Shader-Binding-Table"><a href="#Shader-Binding-Table" class="headerlink" title="Shader Binding Table"></a>Shader Binding Table</h2><p>A shader binding table is a resource which establishes the relationship between the ray tracing pipeline and the acceleration structures that were built for the ray tracing pipeline. It indicates the shaders that operate on each geometry in an acceleration structure. In addition, it contains the resources accessed by each shader, including indices of textures, buffer device addresses, and constants. The application allocates and manages shader binding tables as VkBuffer objects</p>
+<p>Each entry in the shader binding table consists of shaderGroupHandleSize bytes of data, either as queried by vkGetRayTracingShaderGroupHandlesKHR to refer to those specified shaders, or all zeros to refer to a zero shader group.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp">uint32 nHandleDataSize = nHandleCount * nHandleSize;<br>std::vector&lt;uint8&gt; handleData;<br>handleData.<span class="hljs-built_in">resize</span>(nHandleDataSize);<br><br><span class="hljs-built_in">CRY_VERIFY</span>(Extensions::KHR_ray_tracing_pipeline::<span class="hljs-built_in">vkGetRayTracingShaderGroupHandlesKHR</span>(<span class="hljs-built_in">GetDevice</span>()-&gt;<span class="hljs-built_in">GetVkDevice</span>(), m_pipeline,<span class="hljs-number">0</span>, nHandleCount, nHandleDataSize, handleData.<span class="hljs-built_in">data</span>()) == VK_SUCCESS);<br></code></pre></td></tr></table></figure>
+<p>The SBT is a collection of up to four arrays containing the handles of the shader groups used in the ray tracing pipeline, one array for each of the ray generation, miss, hit and callable (not used here) shader groups</p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/sbt_0.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>We will ensure that all starting groups start with an address aligned to shaderGroupBaseAlignment and that each entry in the group is aligned to shaderGroupHandleAlignment bytes. All group entries are aligned with shaderGroupHandleAlignment.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp">m_sRayTracingSBT.m_rayGenRegion.stride = <span class="hljs-built_in">alignedValue</span>(nHandleAlign, nBaseAlign);<br>m_sRayTracingSBT.m_rayGenRegion.size = m_sRayTracingSBT.m_rayGenRegion.stride;<span class="hljs-comment">// The size member of pRayGenShaderBindingTable must be equal to its stride member</span><br><br>m_sRayTracingSBT.m_rayMissRegion.stride = nHandleAlign;<br>m_sRayTracingSBT.m_rayMissRegion.size = <span class="hljs-built_in">alignedValue</span>(nRayMissCount * nHandleAlign, nBaseAlign);<br><br>m_sRayTracingSBT.m_hitGroupRegion.stride = nHandleAlign;<br>m_sRayTracingSBT.m_hitGroupRegion.size = <span class="hljs-built_in">alignedValue</span>(nHitGroupCount * nHandleAlign, nBaseAlign);<br><br>m_sRayTracingSBT.m_callAbleRegion.stride = nHandleAlign;<br>m_sRayTracingSBT.m_callAbleRegion.size = <span class="hljs-number">0</span>;<br></code></pre></td></tr></table></figure>
+<p>In the next section, we store the device address of each shader group.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp">m_sRayTracingSBT.m_rayGenRegion.deviceAddress = sbtAddress;<br>m_sRayTracingSBT.m_rayMissRegion.deviceAddress = sbtAddress + m_sRayTracingSBT.m_rayGenRegion.size;<br>m_sRayTracingSBT.m_hitGroupRegion.deviceAddress = sbtAddress + m_sRayTracingSBT.m_rayGenRegion.size + m_sRayTracingSBT.m_rayMissRegion.size;<br>m_sRayTracingSBT.m_callAbleRegion.deviceAddress = sbtAddress + m_sRayTracingSBT.m_rayGenRegion.size + m_sRayTracingSBT.m_rayMissRegion.size + m_sRayTracingSBT.m_hitGroupRegion.size;<br></code></pre></td></tr></table></figure>
+
+<p>The shader binding tables to use in a ray tracing pipeline are passed to the vkCmdTraceRaysNV, vkCmdTraceRaysKHR, or vkCmdTraceRaysIndirectKHR commands. Shader binding tables are read-only in shaders that are executing on the ray tracing pipeline.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp">Extensions::KHR_ray_tracing_pipeline::<span class="hljs-built_in">vkCmdTraceRaysKHR</span>(<span class="hljs-built_in">GetVKCommandList</span>()-&gt;<span class="hljs-built_in">GetVkCommandList</span>(), <br>	&amp;pVkPipeline-&gt;m_sRayTracingSBT.m_rayGenRegion, <br>	&amp;pVkPipeline-&gt;m_sRayTracingSBT.m_rayMissRegion, <br>	&amp;pVkPipeline-&gt;m_sRayTracingSBT.m_hitGroupRegion, <br>	&amp;pVkPipeline-&gt;m_sRayTracingSBT.m_callAbleRegion,<br>	width, height, <span class="hljs-number">1</span>);<br></code></pre></td></tr></table></figure>
+<h1 id="Bindless-Ray-Tracing"><a href="#Bindless-Ray-Tracing" class="headerlink" title="Bindless Ray Tracing"></a>Bindless Ray Tracing</h1><blockquote>
+<p>The limited nature of the binding slots meant that programs could typically only bind the exact set of resources that would be accessed by a particular shader program, which would often have to be done before every draw or dispatch. The CPU-driven nature of binding demanded that a shader’s required resources had to be statically known after compilation, which naturally led to inherent restrictions on the complexity of a shader program.</p>
+</blockquote>
+<blockquote>
+<p>As ray tracing on the GPU started to gain traction, the classic binding model reached its breaking point. Ray tracing tends to be an inherently global process: one shader program might launch rays that could potentially interact with every material in the scene. This is largely incompatible with the notion of having the CPU bind a fxed set of resources prior to dispatch.</p>
+</blockquote>
+<blockquote>
+<p>Fortunately, newer GPUs and APIs no longer suffer from the same limitations. Bindless techniques effectively provide shader programs with full global access to the full set of textures and buffers that are present on the GPU. Instead of requiring the CPU to bind a view for each individual resource, shaders can instead access an individual resource using a simple 32-bit index that can be freely embedded in user-defned data structures.<br>—— From Ray Tracing Gems:USING BINDLESS RESOURCES WITH DIRECTX RAYTRACING</p>
+</blockquote>
+<p>Create a descriptor pool to store the descriptors. The size of the bindless descriptor pool is as large as possible to ensure that we can store all the descriptors used in ray training. When creating the Descriptor Pool, we need to add the flag <code>VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT</code> to ensure descriptor sets allocated from this pool can include bindings with the <code>VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT</code> bit set</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">CDeviceBindlessDescriptorManager_Vulkan::CreateBindlessDescriptorPool</span><span class="hljs-params">()</span></span><br><span class="hljs-function"></span>&#123;<br>	<span class="hljs-comment">// allocate descriptor pool</span><br>	<span class="hljs-type">const</span> uint32 setCount = <span class="hljs-number">65535</span>;<br>	<span class="hljs-type">const</span> uint32 sampledImageCount = <span class="hljs-number">32</span> * <span class="hljs-number">65536</span>;<br>	<span class="hljs-type">const</span> uint32 storageImageCount = <span class="hljs-number">1</span> * <span class="hljs-number">65536</span>;<br>	<span class="hljs-type">const</span> uint32 uniformBufferCount = <span class="hljs-number">1</span> * <span class="hljs-number">65536</span>;<br>	<span class="hljs-type">const</span> uint32 uniformBufferDynamicCount = <span class="hljs-number">4</span> * <span class="hljs-number">65536</span>;<br>	<span class="hljs-type">const</span> uint32 storageBufferCount = <span class="hljs-number">1</span> * <span class="hljs-number">65536</span>;<br>	<span class="hljs-type">const</span> uint32 uniformTexelBufferCount = <span class="hljs-number">8192</span>;<br>	<span class="hljs-type">const</span> uint32 storageTexelBufferCount = <span class="hljs-number">8192</span>;<br>	<span class="hljs-type">const</span> uint32 samplerCount = <span class="hljs-number">2</span> * <span class="hljs-number">65536</span>;<br>	<span class="hljs-type">const</span> uint32 accelerationStructureCount = <span class="hljs-number">32</span> * <span class="hljs-number">1024</span>;<br><br>	VkDescriptorPoolSize poolSizes[<span class="hljs-number">9</span>];<br><br>	poolSizes[<span class="hljs-number">0</span>].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;<br>	poolSizes[<span class="hljs-number">0</span>].descriptorCount = sampledImageCount;<br><br>	poolSizes[<span class="hljs-number">1</span>].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;<br>	poolSizes[<span class="hljs-number">1</span>].descriptorCount = storageImageCount;<br><br>	poolSizes[<span class="hljs-number">2</span>].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;<br>	poolSizes[<span class="hljs-number">2</span>].descriptorCount = uniformBufferCount;<br><br>	poolSizes[<span class="hljs-number">3</span>].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;<br>	poolSizes[<span class="hljs-number">3</span>].descriptorCount = uniformBufferDynamicCount;<br><br>	poolSizes[<span class="hljs-number">4</span>].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;<br>	poolSizes[<span class="hljs-number">4</span>].descriptorCount = storageBufferCount;<br><br>	poolSizes[<span class="hljs-number">5</span>].type = VK_DESCRIPTOR_TYPE_SAMPLER;<br>	poolSizes[<span class="hljs-number">5</span>].descriptorCount = samplerCount;<br><br>	poolSizes[<span class="hljs-number">6</span>].type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;<br>	poolSizes[<span class="hljs-number">6</span>].descriptorCount = uniformTexelBufferCount;<br><br>	poolSizes[<span class="hljs-number">7</span>].type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;<br>	poolSizes[<span class="hljs-number">7</span>].descriptorCount = storageTexelBufferCount;<br><br>	poolSizes[<span class="hljs-number">8</span>].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;<br>	poolSizes[<span class="hljs-number">8</span>].descriptorCount = accelerationStructureCount;<br><br>	VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = &#123;&#125;;<br>	descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;<br>	descriptorPoolCreateInfo.pNext = <span class="hljs-literal">nullptr</span>;<br><br>	descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;<span class="hljs-comment">//TanGram:BINDLESS</span><br><br>	descriptorPoolCreateInfo.maxSets = setCount;<br>	descriptorPoolCreateInfo.poolSizeCount = <span class="hljs-built_in">CRY_ARRAY_COUNT</span>(poolSizes);<br>	descriptorPoolCreateInfo.pPoolSizes = poolSizes;<br><br>	<span class="hljs-built_in">CRY_ASSERT</span>(<span class="hljs-built_in">vkCreateDescriptorPool</span>(<span class="hljs-built_in">GetDevice</span>()-&gt;<span class="hljs-built_in">GetVkDevice</span>(), &amp;descriptorPoolCreateInfo, <span class="hljs-literal">nullptr</span>, &amp;m_bindlessDescriptorPool) == VK_SUCCESS);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Create the Descriptor Set Layout with at least the flags <code>VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT</code> and <code>VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT</code>. </p>
+<p>Descriptor binding flag <code>VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT</code>: This flag indicates that if we update descriptor after it is bound (i.e using <code>vkBindDescriptorSets</code>), the command submission will use the most recently updated version of the descriptor set and most importantly, the update will NOT invalidate the command buffer. </p>
+<p>Descriptor binding flag <code>VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT</code>: This flag indicates that descriptor set does not need to have valid descriptors in them as long as the invalid descriptors are not accessed during shader execution.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><code class="hljs cpp">VkDescriptorSetLayoutBindingFlagsCreateInfo descriptorSetLayoutBindingFlagsCreateInfo;<br>descriptorSetLayoutBindingFlagsCreateInfo = &#123; VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO &#125;;<br>descriptorSetLayoutBindingFlagsCreateInfo.bindingCount = EBindlessDescriptorBindingType::e_bdbtNum;<br>descriptorSetLayoutBindingFlagsCreateInfo.pBindingFlags = bindingFlags.<span class="hljs-built_in">data</span>();<br><br>VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = &#123; VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO &#125;;<br>descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.<span class="hljs-built_in">data</span>();<br>descriptorSetLayoutCreateInfo.bindingCount = EBindlessDescriptorBindingType::e_bdbtNum;<br>descriptorSetLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;<br><span class="hljs-comment">//descriptorSetLayoutCreateInfo.flags = 0;</span><br>descriptorSetLayoutCreateInfo.pNext = &amp;descriptorSetLayoutBindingFlagsCreateInfo;<br><br><span class="hljs-built_in">CRY_ASSERT</span>(<span class="hljs-built_in">vkCreateDescriptorSetLayout</span>(<span class="hljs-built_in">GetDevice</span>()-&gt;<span class="hljs-built_in">GetVkDevice</span>(), &amp;descriptorSetLayoutCreateInfo, <span class="hljs-literal">nullptr</span>, &amp;m_bindlessDescriptorSetLayout) == VK_SUCCESS);<br></code></pre></td></tr></table></figure>
+
+<p>Then, create the actual descriptor set from the bindless pool:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs cpp">VkDescriptorSetAllocateInfo descriptorSetAllocateInfo&#123; VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO &#125;;<br>descriptorSetAllocateInfo.descriptorPool = m_bindlessDescriptorPool;<br>descriptorSetAllocateInfo.descriptorSetCount = <span class="hljs-number">1</span>;<br>descriptorSetAllocateInfo.pSetLayouts = &amp;m_bindlessDescriptorSetLayout;<br><br>VkDescriptorSetVariableDescriptorCountAllocateInfoEXT descriptorSetVariableDescriptorCountAllocateInfoEXT;<br>descriptorSetVariableDescriptorCountAllocateInfoEXT = &#123; VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT &#125;;<br>uint32 maxAllocatableCount = bindlessDescriptorCounrPerType - <span class="hljs-number">1</span>;<br>descriptorSetVariableDescriptorCountAllocateInfoEXT.descriptorSetCount = <span class="hljs-number">1</span>;<br><span class="hljs-comment">// This number is the max allocatable count</span><br>descriptorSetVariableDescriptorCountAllocateInfoEXT.pDescriptorCounts = &amp;maxAllocatableCount;<br>descriptorSetAllocateInfo.pNext = &amp;descriptorSetVariableDescriptorCountAllocateInfoEXT;<br><br><span class="hljs-built_in">CRY_ASSERT</span>(<span class="hljs-built_in">vkAllocateDescriptorSets</span>(<span class="hljs-built_in">GetDevice</span>()-&gt;<span class="hljs-built_in">GetVkDevice</span>(), &amp;descriptorSetAllocateInfo, &amp;m_bindlessDescriptorSet) == VK_SUCCESS);<br></code></pre></td></tr></table></figure>
+<p>If we want to use a buffer as a bindless resource, we need to obtain the bindless index from the free list array managed by ourselves. We also need to update the descriptors in the global descriptor pool.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">uint32 <span class="hljs-title">CDeviceObjectFactory::SetBindlessStorageBufferImpl</span><span class="hljs-params">(<span class="hljs-type">const</span> CDeviceInputStream* DeviceStreaming, uint32 bindingIndex)</span></span><br><span class="hljs-function"></span>&#123;<br>	<span class="hljs-built_in">CRY_ASSERT</span>(bindingIndex &gt;= <span class="hljs-number">2</span> &amp;&amp; bindingIndex &lt;= <span class="hljs-number">5</span>);<br><br>	CDeviceBindlessDescriptorManager_Vulkan* pDeviceBindlessDescriptorManager = <span class="hljs-built_in">static_cast</span>&lt;CDeviceBindlessDescriptorManager_Vulkan*&gt;(m_pDeviceBindlessDescriptorManager);<br>	<br>	<span class="hljs-type">buffer_size_t</span> offset;<br>	CBufferResource* <span class="hljs-type">const</span> pActualBuffer = gcpRendD3D.m_DevBufMan.<span class="hljs-built_in">GetD3D</span>(((SStreamInfo*)DeviceStreaming)-&gt;hStream, &amp;offset);<br>	VkBuffer buffer = pActualBuffer-&gt;<span class="hljs-built_in">GetHandle</span>();<br><br>	SBufferBindingState&amp; storageufferBindingState = pDeviceBindlessDescriptorManager-&gt;m_BufferBindingState[bindingIndex];<br><br>	uint32 currentFreeIndex = storageufferBindingState.m_currentFreeIndex;<br>	storageufferBindingState.m_currentFreeIndex = storageufferBindingState.m_freeIndexArray[storageufferBindingState.m_currentFreeIndex];<br><br>	uint32 bufferSize = storageufferBindingState.m_buffers.<span class="hljs-built_in">size</span>();<br>	<span class="hljs-keyword">if</span> (currentFreeIndex &gt;= bufferSize)<br>	&#123;<br>		storageufferBindingState.m_buffers.<span class="hljs-built_in">resize</span>(<span class="hljs-built_in">alignedValue</span>(currentFreeIndex + <span class="hljs-number">1</span>, <span class="hljs-number">1024</span>));<br>		storageufferBindingState.m_bufferInfos.<span class="hljs-built_in">resize</span>(<span class="hljs-built_in">alignedValue</span>(currentFreeIndex + <span class="hljs-number">1</span>, <span class="hljs-number">1024</span>));<br>	&#125;<br>	storageufferBindingState.m_buffers[currentFreeIndex] = buffer;<br>	<br>	<br>	VkDescriptorBufferInfo descriptorBufferInfo;<br>	<span class="hljs-comment">//range is the size in bytes that is used for this descriptor update, or VK_WHOLE_SIZE to use the range from offset to the end of the buffer.</span><br>	descriptorBufferInfo.range = VK_WHOLE_SIZE;<br>	descriptorBufferInfo.buffer = storageufferBindingState.m_buffers[currentFreeIndex];<br>	descriptorBufferInfo.offset = offset;<br>	storageufferBindingState.m_bufferInfos[currentFreeIndex] = descriptorBufferInfo;<br><br>	VkWriteDescriptorSet writeDescriptorSet = &#123; VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET &#125;;<br>	writeDescriptorSet.dstSet = pDeviceBindlessDescriptorManager-&gt;m_bindlessDescriptorSet;<br>	writeDescriptorSet.dstBinding = bindingIndex;<br>	writeDescriptorSet.dstArrayElement = currentFreeIndex;<br>	writeDescriptorSet.descriptorType = <span class="hljs-built_in">ConvertToDescriptorType</span>(bindingIndex);<br>	writeDescriptorSet.pBufferInfo = &amp;storageufferBindingState.m_bufferInfos[currentFreeIndex];<br>	writeDescriptorSet.descriptorCount = <span class="hljs-number">1</span>;<br><br>	pDeviceBindlessDescriptorManager-&gt;m_descriptorSetWrites.<span class="hljs-built_in">emplace_back</span>(writeDescriptorSet);<br>	pDeviceBindlessDescriptorManager-&gt;m_isUpdateDescriptor = <span class="hljs-literal">false</span>;<br><br>	<span class="hljs-keyword">return</span> currentFreeIndex;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Bind the bindless descriptor set during ray tracing dispatch if we use bindless descriptor set.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (pVkLayout-&gt;m_needBindless)<br>&#123;<br>	<span class="hljs-built_in">vkCmdBindDescriptorSets</span>(<br>		<span class="hljs-built_in">GetVKCommandList</span>()-&gt;<span class="hljs-built_in">GetVkCommandList</span>(),<br>		VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,<br>		pVkLayout-&gt;<span class="hljs-built_in">GetVkPipelineLayout</span>(),<br>		<span class="hljs-number">1</span>, <span class="hljs-comment">/*<span class="hljs-doctag">TODO:</span>FixMe*/</span><br>		<span class="hljs-number">1</span>,<br>		&amp;pDeviceBindlessDescriptorManager-&gt;m_bindlessDescriptorSet, <span class="hljs-number">0</span>, <span class="hljs-literal">nullptr</span>);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>result in cry engine:</p>
+<p align="center">
+    <img src="/resource/vkraytracing/image/result.png" srcset="/img/loading.gif" lazyload width="75%" height="75%">
+</p>
+
+<p><a target="_blank" rel="noopener" href="https://github.com/ShawnTSH1229/VkRtInCryEngine"><u><strong>Bindless Vulkan RayTracing In Cry Engine Source Code</strong></u></a></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Bindless Vulkan Ray Tracing In Cry Engine</div>
+      <div>http://example.com/2024/06/30/Bindless-Vulkan-Ray-Tracing-In-Cry-Engine/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Shawn Tang</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>June 30, 2024</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2024/06/18/ASTC-Compression-Using-CUDA/" title="ASTC Compression Accleration Using CUDA">
+                        <span class="hidden-mobile">ASTC Compression Accleration Using CUDA</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>Table of Contents</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>

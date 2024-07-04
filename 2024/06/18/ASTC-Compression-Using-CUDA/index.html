@@ -1,0 +1,893 @@
+
+
+<!DOCTYPE html>
+<html lang="en" data-default-color-scheme=light>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Shawn Tang">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="OverviewASTC is a fixed-rate, lossy texture compression system that is designed to offer an unusual degree of flexibility and to support a very wide range of use cases, while providing better image qu">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ASTC Compression Accleration Using CUDA">
+<meta property="og:url" content="http://example.com/2024/06/18/ASTC-Compression-Using-CUDA/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="OverviewASTC is a fixed-rate, lossy texture compression system that is designed to offer an unusual degree of flexibility and to support a very wide range of use cases, while providing better image qu">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/resource/cuda_astc/image/blcok_mode_iteration.png">
+<meta property="article:published_time" content="2024-06-18T11:33:47.000Z">
+<meta property="article:modified_time" content="2024-07-04T15:13:38.706Z">
+<meta property="article:author" content="Shawn Tang">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/resource/cuda_astc/image/blcok_mode_iteration.png">
+  
+  
+  
+  <title>ASTC Compression Accleration Using CUDA - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.7","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":10},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<!-- hexo injector head_end start -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/hexo-math@4.0.0/dist/style.css">
+<!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>ShawnTSH1229</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>Home</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>Archives</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>Categories</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>About</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="ASTC Compression Accleration Using CUDA"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2024-06-18 19:33" pubdate>
+          June 18, 2024 pm
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          2.1k words
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          18 mins
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">ASTC Compression Accleration Using CUDA</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="Overview"><a href="#Overview" class="headerlink" title="Overview"></a>Overview</h1><p>ASTC is a fixed-rate, lossy texture compression system that is designed to offer an unusual degree of flexibility and to support a very wide range of use cases, while providing better image quality than most formats in common use today.</p>
+<p>However, ASTC need to search a lot of candidate block modes to find the best format. It takes a lot of time to compress the texture in practice. Since the texture block compression is not relevant to each other at all, we can compress the texture parallelly with GPU.</p>
+<p>In our project, we compress the texture with Cuda. The compression algorithm is based on the arm astc-enc implementation. It’s a CPU-based compression program. We port arm-astc to GPU and make full use of the cuda to acclerate the texture compression.</p>
+<p>A naive implementation of GPU ASTC compression is compressing the ASTC texture block per thread, that is, task parallel compression. Since the block compression task is heavy and uses many registers, the number of active warps is low, which causes low occupancy. To make full use of the GPU, we use data parallel to compress the ASTC block per CUDA block. It splits the “for loop” task into each thread and shares the data between lanes by warp shuffle as possible as we can.</p>
+<p>The astc-enc implementation has a large number of intermediate buffers during candidate block mode searching, which has little performance impact on CPU-based implementations, but has a significant impact on GPU-based implementations. We have optimized this algorithm by in-place update, which removes the intermediate buffer.</p>
+<h1 id="CPU-Based-Implementation"><a href="#CPU-Based-Implementation" class="headerlink" title="CPU Based Implementation"></a>CPU Based Implementation</h1><h2 id="Bounded-Integer-Sequence-Encoding"><a href="#Bounded-Integer-Sequence-Encoding" class="headerlink" title="Bounded Integer Sequence Encoding"></a>Bounded Integer Sequence Encoding</h2><p>ASTC uses BISE to encode color end points and color weights. We introduce BISE first since it is the basis of the ASTC compression algorithm.</p>
+<p>Both the weight data and the endpoint color data are variable width, and are specified using a sequence of integer values. The range of each value in a sequence (e.g. a color weight) is constrained.</p>
+<p>Since it is often the case that the most efficient range for these values is not a power of two, each value sequence is encoded using a technique known as “integer sequence encoding”. This allows efficient, hardware-friendly packing and unpacking of values with non-power-of-two ranges.</p>
+<p>In a sequence, each value has an identical range. The range is specified in one of the following forms:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/range_form.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>There are 21 quant methods in ASTC, including 6 quints quant forms, 7 trits quant forms and 8 bits quant forms.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/range_table.png" srcset="/img/loading.gif" lazyload width="40%" height="40%">
+</p>
+
+<p>For example, assume we have 3 integer values: 30, 50 and 70. The minimum range of quant formats among these values is Quant_80. The binary formats of these values are: 001 1110(30), 011 0010(50) and 100 0110(70). The total bits size before quantization is 21 &#x3D; 7 * 3.</p>
+<p>The binary format of value 80 is 101 0000. We split it into two parts, the higher parts 101 and lower parts 0000. The possible values of the higher parts are from 000 to 101, whose total number is 5, so Quant 80 is a quints form.</p>
+<p>The higher parts of 30, 50 and 70 are [001, 011, 100]. In the Quant 80 method, the total possible number is 5, so the number of possible combinations of [001, 011, 100] is 5x5x5 &#x3D; 125. We can precompute these possible values into a table and use the 7 bit value to index the table. The result is a 2 bit saving for these integers.</p>
+<p>Higher parts [001, 011, 100] equal to [1,3,4]. Using index [1][3][4] to search the below quints table, we get the compressed value:11, which is 1011 in binary format. The compressed result is [000 1011](higher parts),[1110],[0010],[0110](lower parts) with size 19.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/quints_table.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+
+<h2 id="Generate-Block-Mode"><a href="#Generate-Block-Mode" class="headerlink" title="Generate Block Mode"></a>Generate Block Mode</h2><p>ASTC uses 10 bits to store block modes, which means it has 2^11(2048) kind of possible choices. Given an ASTC compression format, some block modes may be invalid. For example, ASTC 4x4 compression format will never use a block mode with 6x6 texel weights. So we search for valid block modes and store the results in a global block mode table. In order to reduce the computation cost of block mode search, arm-astc reordered the block modes so that the better block mode has a higher priority.</p>
+<p>Search block mode from 000000000(0) to 1111111111(2048).</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">2048</span>; i++)<br>&#123;<br>    <span class="hljs-comment">// ......</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>The Block Mode field specifies the width, height and depth of the grid of weights, what range of values they use, and whether dual weight planes are present.</p>
+<p>For 2D blocks, the Block Mode field is laid out as follows:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/block_mode.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<p>The <strong>D</strong> bit is set to indicate dual-plane mode.</p>
+<p>The <strong>A&#x2F;B</strong> bits indicate the block weight size.</p>
+<p>The weight ranges are encoded using a 3 bit value <strong>R(R0,R1 and R2)</strong>, which is interpreted together with a precision bit <strong>H</strong>, as follows:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/weight_range.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<p>Decode the R,H,D, weight sizes x and y from the bits.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">uint8_t</span> R0 = (block_mode &gt;&gt; <span class="hljs-number">4</span>) &amp; <span class="hljs-number">1</span>;<br><span class="hljs-type">uint8_t</span> H = (block_mode &gt;&gt; <span class="hljs-number">9</span>) &amp; <span class="hljs-number">1</span>;<br><span class="hljs-type">uint8_t</span> D = (block_mode &gt;&gt; <span class="hljs-number">10</span>) &amp; <span class="hljs-number">1</span>;<br><span class="hljs-type">uint8_t</span> A = (block_mode &gt;&gt; <span class="hljs-number">5</span>) &amp; <span class="hljs-number">0x3</span>;<br><br>x_weights = xxxxxx;<br>y_weights = xxxxxx;<br></code></pre></td></tr></table></figure>
+
+<p>Skip the block mode if the qunat weight size is larger than the compression block size.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (!valid || (x_weights &gt; x_texels) || (y_weights &gt; y_texels))<br>&#123;<br>	<span class="hljs-keyword">continue</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>valid block mode:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/valid_block_mode.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<h2 id="Compute-Ideal-Color-And-Weights"><a href="#Compute-Ideal-Color-And-Weights" class="headerlink" title="Compute Ideal Color And Weights"></a>Compute Ideal Color And Weights</h2><h3 id="Color-Encoding"><a href="#Color-Encoding" class="headerlink" title="Color Encoding"></a>Color Encoding</h3><p>Each compressed block stores the end-point colors for a gradient, and an interpolation weight for each texel which defines the texel’s location along that gradient. During decompression the color value for each texel is generated by interpolating between the two end-point colors, based on the per-texel weight.</p>
+<p>We sum up the relative colors in the positive R, G, and B directions and calculate the sum of direction lengths.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/color_gradient.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<h3 id="Endpoints-Computation"><a href="#Endpoints-Computation" class="headerlink" title="Endpoints Computation"></a>Endpoints Computation</h3><p>Compute the mean color value and the main color direction first. There are many main direction calculation method. We use max accumulation pixel direction as the main direction, which is the same as the arm-astc implementation. We sum up the relative colors in the positive R, G, and B directions and calculate the sum of direction lengths.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">float4 <span class="hljs-title">sum_xp</span><span class="hljs-params">(<span class="hljs-number">0.0</span>)</span></span>;<br><span class="hljs-function">float4 <span class="hljs-title">sum_yp</span><span class="hljs-params">(<span class="hljs-number">0.0</span>)</span></span>;<br><span class="hljs-function">float4 <span class="hljs-title">sum_zp</span><span class="hljs-params">(<span class="hljs-number">0.0</span>)</span></span>;<br><span class="hljs-function">float4 <span class="hljs-title">sum_wp</span><span class="hljs-params">(<span class="hljs-number">0.0</span>)</span></span>;<br><br><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; blk.texel_count; i++)<br>&#123;<br>	float4 texel_datum = <span class="hljs-built_in">make_float4</span>(blk.data_r[i], blk.data_g[i], blk.data_b[i], blk.data_a[i]);<br>	texel_datum = texel_datum - blk.data_mean;<br><br>	sum_xp += (texel_datum.x &gt; <span class="hljs-number">0</span>) ? texel_datum : <span class="hljs-built_in">make_float4</span>(<span class="hljs-number">0</span>);<br>	sum_yp += (texel_datum.y &gt; <span class="hljs-number">0</span>) ? texel_datum : <span class="hljs-built_in">make_float4</span>(<span class="hljs-number">0</span>);<br>	sum_zp += (texel_datum.z &gt; <span class="hljs-number">0</span>) ? texel_datum : <span class="hljs-built_in">make_float4</span>(<span class="hljs-number">0</span>);<br>	sum_wp += (texel_datum.w &gt; <span class="hljs-number">0</span>) ? texel_datum : <span class="hljs-built_in">make_float4</span>(<span class="hljs-number">0</span>);<br>&#125;<br><br><span class="hljs-type">float</span> prod_xp = <span class="hljs-built_in">dot</span>(sum_xp, sum_xp);<br><span class="hljs-type">float</span> prod_yp = <span class="hljs-built_in">dot</span>(sum_yp, sum_yp);<br><span class="hljs-type">float</span> prod_zp = <span class="hljs-built_in">dot</span>(sum_zp, sum_zp);<br><span class="hljs-type">float</span> prod_wp = <span class="hljs-built_in">dot</span>(sum_wp, sum_wp);<br></code></pre></td></tr></table></figure>
+<p>Use the maximum sum direction as the main direction</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs cpp">float4 best_vector = sum_xp;<br><span class="hljs-type">float</span> best_sum = prod_xp;<br><br><span class="hljs-keyword">if</span> (prod_yp &gt; best_sum)<br>&#123;<br>	best_vector = sum_yp;<br>	best_sum = prod_yp;<br>&#125;<br><br><span class="hljs-keyword">if</span> (prod_zp &gt; best_sum)<br>&#123;<br>	best_vector = sum_zp;<br>	best_sum = prod_zp;<br>&#125;<br><br><span class="hljs-keyword">if</span> (prod_wp &gt; best_sum)<br>&#123;<br>	best_vector = sum_wp;<br>	best_sum = prod_wp;<br>&#125;<br><br>dir = best_vector;<br></code></pre></td></tr></table></figure>
+
+<h3 id="Interpolation-Weight-Computation"><a href="#Interpolation-Weight-Computation" class="headerlink" title="Interpolation Weight Computation"></a>Interpolation Weight Computation</h3><p>Project the color into the main direction for each texel and find the minimum and maximum projected value by the way.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs cpp">line4 line&#123; blk.data_mean, length_dir &lt; <span class="hljs-number">1e-10</span> ? <span class="hljs-built_in">normalize</span>(<span class="hljs-built_in">make_float4</span>(<span class="hljs-number">1.0</span>)) : <span class="hljs-built_in">normalize</span>(dir) &#125;;<br><br><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> j = <span class="hljs-number">0</span>; j &lt; blk.texel_count; j++)<br>&#123;<br>	<span class="hljs-function">float4 <span class="hljs-title">point</span><span class="hljs-params">(blk.data_r[j], blk.data_g[j], blk.data_b[j], blk.data_a[j])</span></span>;<br>	<span class="hljs-type">float</span> param = <span class="hljs-built_in">dot</span>(point - line.a, line.b);<br><br>	ei.weights[j] = param;<br><br>	lowparam = <span class="hljs-built_in">fmin</span>(param, lowparam);<br>	highparam = <span class="hljs-built_in">fmax</span>(param, highparam);<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Calculate the end points based on the min&#x2F;max projected color.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">ei.ep.endpt0 = line.a + line.b * lowparam;<br>ei.ep.endpt1 = line.a + line.b * highparam;<br></code></pre></td></tr></table></figure>
+
+<p>Normalize the weight range into 0 to 1:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> length = highparam - lowparam;<br><span class="hljs-type">float</span> scale = <span class="hljs-number">1.0f</span> / length;<br><br><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> j = <span class="hljs-number">0</span>; j &lt; blk.texel_count; j++)<br>&#123;<br>	<span class="hljs-type">float</span> idx = (ei.weights[j] - lowparam) * scale;<br>	idx = <span class="hljs-built_in">clamp</span>(idx, <span class="hljs-number">0.0</span>, <span class="hljs-number">1.0</span>);<br>	ei.weights[j] = idx;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>before color projection:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/before_color_projection.png" srcset="/img/loading.gif" lazyload width="30%" height="30%">
+</p>
+
+<p>after color projection:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/after_color_projection.png" srcset="/img/loading.gif" lazyload width="30%" height="30%">
+</p>
+
+<h2 id="Compute-Weight-Quant-Error"><a href="#Compute-Weight-Quant-Error" class="headerlink" title="Compute Weight Quant Error"></a>Compute Weight Quant Error</h2><p>Compute the quant errors for each candidate block mode. Get the Quant method from the block mode and quantize the weights. After that, unquant the result by look up the precomputed quant map table. It should be noticed that the maximum color weight Quant method is Quant 32 and the maximum color end points Quant method is Quant 256.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/weight_quant_error.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>Accumulate the weight quantization error for the texel weights in the block.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> error_summa = <span class="hljs-number">0</span>;<br><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; bsd.texel_count; i++)<br>&#123;<br>	<span class="hljs-comment">// Load the weight set directly, without interpolation</span><br>	<span class="hljs-type">float</span> current_values = weight_quant_uvalue[i];<br><br>	<span class="hljs-comment">// Compute the error between the computed value and the ideal weight</span><br>	<span class="hljs-type">float</span> actual_values = eai.weights[i];<br>	<span class="hljs-type">float</span> diff = current_values - actual_values;<br><br>	<span class="hljs-type">float</span> error = diff * diff;<br>	error_summa += error;<br>&#125;<br><span class="hljs-keyword">return</span> error_summa;<br></code></pre></td></tr></table></figure>
+<p>weights quant error result:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/weight_quant_error_result.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h2 id="Compute-Endpoint-Quant-Error"><a href="#Compute-Endpoint-Quant-Error" class="headerlink" title="Compute Endpoint Quant Error"></a>Compute Endpoint Quant Error</h2><p>The next step is to search for the best K candidate end point format as we have the quant error of each block mode.</p>
+<h3 id="CEM"><a href="#CEM" class="headerlink" title="CEM"></a>CEM</h3><p>CEM is the color endpoint mode field, which determines how the Color Endpoint Data is encoded. Here is the CEM layout for single-partition block layout:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/cem_layout.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>In single-partition mode, the Color Endpoint Mode (CEM) field stores one of 16 possible values. Each of these specifies how many raw data values are encoded, and how to convert these raw values into two RGBA color endpoints. They can be summarized as follows:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/16cems.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>ASTC has 16 color end point modes. To store the end points, Modes 0 to 3 use two integers, Modes 4 to 7 use four integers, Modes 7 to 11 use six integers, and Modes 12 to 15 use eight integers. In our implementation, we only support six modes: mode 0, mode 4, mode 6, mode 8, mode 10 and mode 12.</p>
+<p>Decode the different LDR endpoint modes as follows:</p>
+<p>1.Mode 0  LDR Luminance, direct:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">e0=(v0,v0,v0,<span class="hljs-number">0xFF</span>); <br>e1=(v1,v1,v1,<span class="hljs-number">0xFF</span>);<br></code></pre></td></tr></table></figure>
+
+<p>2.Mode 4  LDR Luminance+Alpha,direct:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">e0=(v0,v0,v0,v2);<br>e1=(v1,v1,v1,v3);<br></code></pre></td></tr></table></figure>
+
+<p>3.Mode 6  LDR RGB, base+scale</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">e0=(v0*v3&gt;&gt;<span class="hljs-number">8</span>,v1*v3&gt;&gt;<span class="hljs-number">8</span>,v2*v3&gt;&gt;<span class="hljs-number">8</span>, <span class="hljs-number">0xFF</span>);<br>e1=(v0,v1,v2,<span class="hljs-number">0xFF</span>);<br></code></pre></td></tr></table></figure>
+
+<p>4.Mode 8  LDR RGB, Direct</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs cpp">s0= v0+v2+v4; <br>s1= v1+v3+v5;<br><span class="hljs-keyword">if</span> (s1&gt;=s0)<br>&#123;<br>	e0=(v0,v2,v4,<span class="hljs-number">0xFF</span>);<br>    e1=(v1,v3,v5,<span class="hljs-number">0xFF</span>); <br>&#125;<br><span class="hljs-keyword">else</span> <br>&#123; <br>	e0=<span class="hljs-built_in">blue_contract</span>(v1,v3,v5,<span class="hljs-number">0xFF</span>);<br>    e1=<span class="hljs-built_in">blue_contract</span>(v0,v2,v4,<span class="hljs-number">0xFF</span>); <br>&#125;<br></code></pre></td></tr></table></figure>
+<p>5.Mode 10 LDR RGB, base+scale plus two A</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">e0=(v0*v3&gt;&gt;<span class="hljs-number">8</span>,v1*v3&gt;&gt;<span class="hljs-number">8</span>,v2*v3&gt;&gt;<span class="hljs-number">8</span>, v4);<br>e1=(v0,v1,v2, v5)<br></code></pre></td></tr></table></figure>
+
+<p>6.Mode 12 LDR RGBA, direct</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp">s0= v0+v2+v4; s1= v1+v3+v5;<br><span class="hljs-keyword">if</span> (s1&gt;=s0)<br>&#123;<br>	e0=(v0,v2,v4,v6);<br>    e1=(v1,v3,v5,v7); <br>&#125;<br><span class="hljs-keyword">else</span> <br>&#123;<br>	e0=<span class="hljs-built_in">blue_contract</span>(v1,v3,v5,v7);<br>    e1=<span class="hljs-built_in">blue_contract</span>(v0,v2,v4,v6); <br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Then, we estimate the error of each end point mode. Color end point modes can be classified into 3 types: luminance representation, scale representation and RGB representation. In astc-enc, the error estimation of luminance representation is the sum of the distances to vector normalize(lumi,lumin,lumin) &#x3D; float3(0.57,0.57,0.57). Scale representation error estimation is the sum of the distance to vector normalize(EndPointA + EndPointB).</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp">samec_rgb_lines.a = <span class="hljs-built_in">make_float4</span>(<span class="hljs-number">0</span>);<br>samec_rgb_lines.b = <span class="hljs-built_in">normalize_safe</span>(avg);<br><br><span class="hljs-type">float</span> val = <span class="hljs-number">0.577350258827209473f</span>;<br>luminance_plines.amod = <span class="hljs-built_in">make_float4</span>(<span class="hljs-number">0</span>);<br>luminance_plines.bs = <span class="hljs-built_in">make_float4</span>(val, val, val, <span class="hljs-number">0.0f</span>);<br></code></pre></td></tr></table></figure>
+<p>Calculate and accumulate the scale and luminance error of each texel:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// Compute same chroma error - no &quot;amod&quot;, its always zero</span><br>param = data_r * samec_bs0+ data_g * samec_bs1 + data_b * samec_bs2;<br><br>dist0 = (param * samec_bs0) - data_r;<br>dist1 = (param * samec_bs1) - data_g;<br>dist2 = (param * samec_bs2) - data_b;<br><br>error = dist0 * dist0 + dist1 * dist1 + dist2 * dist2;<br><br>samec_err += error;<br><br><span class="hljs-comment">// Compute luma error - no &quot;amod&quot;, its always zero</span><br>param = data_r * l_bs0 + data_g * l_bs1 + data_b * l_bs2;<br><br>dist0 = (param * l_bs0) - data_r;<br>dist1 = (param * l_bs1) - data_g;<br>dist2 = (param * l_bs2) - data_b;<br><br>error = dist0 * dist0 + dist1 * dist1 + dist2 * dist2;<br><br>l_err += error;<br></code></pre></td></tr></table></figure>
+
+<p>The endpoint encoding uses 21 quant levels and 4 kinds of integer numbers, resulting in a total candidate format count of 21 * 4. For each quant level, we choose the endpoint format for each kind of integer number.</p>
+<p>The error estimation contains six parts: baseline quant error, base quant error RGB, base quant error RGBA, scale error, luminance error, drop alpha error.</p>
+<p>1.Baseline quant error is precomputed in a look up table and indexed by quant level.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs cpp">__constant__ <span class="hljs-type">float</span> baseline_quant_error[<span class="hljs-number">21</span> - QUANT_6]&#123;<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">5</span> * <span class="hljs-number">5</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">7</span> * <span class="hljs-number">7</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">9</span> * <span class="hljs-number">9</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">11</span> * <span class="hljs-number">11</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">15</span> * <span class="hljs-number">15</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">19</span> * <span class="hljs-number">19</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">23</span> * <span class="hljs-number">23</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">31</span> * <span class="hljs-number">31</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">39</span> * <span class="hljs-number">39</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">47</span> * <span class="hljs-number">47</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">63</span> * <span class="hljs-number">63</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">79</span> * <span class="hljs-number">79</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">95</span> * <span class="hljs-number">95</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">127</span> * <span class="hljs-number">127</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">159</span> * <span class="hljs-number">159</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">191</span> * <span class="hljs-number">191</span>),<br>	(<span class="hljs-number">65536.0f</span> * <span class="hljs-number">65536.0f</span> / <span class="hljs-number">18.0f</span>) / (<span class="hljs-number">255</span> * <span class="hljs-number">255</span>)<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>2.In our implementation, the base quant error of each channel is the same.  In astc-enc, the error of each channel can be adjusted by the user.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> base_quant_error_rgb = <span class="hljs-number">3</span> * blk.texel_count;<br><span class="hljs-type">float</span> base_quant_error_a = <span class="hljs-number">1</span> * blk.texel_count;<br><span class="hljs-type">float</span> base_quant_error_rgba = base_quant_error_rgb + base_quant_error_a;<br></code></pre></td></tr></table></figure>
+<p>3.Scale error, luminance error and drop alpha error are computed in the previous step.</p>
+<p>4.The final error for each endpoint format is the combination of the above errors.</p>
+<p>Take the example of computing the error for the endpoint format encoded by 4 integers using the quant method 7.</p>
+<p>The error of mode &lt;RGB base + scale&gt; calculation formula is as follows:<br>rgbs_alpha_error &#x3D; base quant error <strong>rgba</strong> * baseline quant error of quant method 7 + <strong>rgb scale</strong> error</p>
+<p>The error of mode <RGB direct> calculation formula:<br>full_ldr_rgb_error &#x3D; base quant error <strong>rgb</strong> * baseline quant error of quant method 7 + <strong>alpha drop</strong> error</p>
+<p>Select the format with the minimum error:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (rgbs_alpha_error &lt; full_ldr_rgb_error)<br>&#123;<br>	best_error[i][<span class="hljs-number">2</span>] = rgbs_alpha_error;<br>	format_of_choice[i][<span class="hljs-number">2</span>] = FMT_RGB_SCALE_ALPHA;<br>&#125;<br><span class="hljs-keyword">else</span><br>&#123;<br>	best_error[i][<span class="hljs-number">2</span>] = full_ldr_rgb_error;<br>	format_of_choice[i][<span class="hljs-number">2</span>] = FMT_RGB;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p align="center">
+    <img src="/resource/cuda_astc/image/cem_select.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<h3 id="Find-The-Best-Endpoint-Quantization-Format"><a href="#Find-The-Best-Endpoint-Quantization-Format" class="headerlink" title="Find The Best Endpoint Quantization Format"></a>Find The Best Endpoint Quantization Format</h3><p>Search for all possible combinations of qunat level and color endpoint mode. We can obtain the available number of weight bits from the given block mode.  Given the number of available bits and the number of integer, we want to choose the quant level as high as possible to minimize the quantization error. It can be precomputed in a lookup table offline:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/quant_mode_table.png" srcset="/img/loading.gif" lazyload width="60%" height="60%">
+</p>
+
+<p>The best quant level can be directly accessed from the lookup table at runtime:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">int</span> quant_level = quant_mode_table[integer_count][bits_available];<br></code></pre></td></tr></table></figure>
+<p>Store the best number of integers that has the minimum error given a block mode.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> integer_count = <span class="hljs-number">1</span>; integer_count &lt;= <span class="hljs-number">4</span>; integer_count++)<br>&#123;<br>	<span class="hljs-type">int</span> quant_level = quant_mode_table[integer_count][bits_available];<br><br>	<span class="hljs-type">float</span> integer_count_error = best_combined_error[quant_level][integer_count - <span class="hljs-number">1</span>];<br>	<span class="hljs-keyword">if</span> (integer_count_error &lt; best_integer_count_error)<br>	&#123;<br>		best_integer_count_error = integer_count_error;<br>		best_integer_count = integer_count - <span class="hljs-number">1</span>;<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>best color endpoint quant format:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/bast_color_endpoint_quant_format.png" srcset="/img/loading.gif" lazyload width="75%" height="75%">
+</p>
+
+<h2 id="Find-The-Candidate-Block-Mode"><a href="#Find-The-Candidate-Block-Mode" class="headerlink" title="Find The Candidate Block Mode"></a>Find The Candidate Block Mode</h2><p>The block mode total error is the sum of the errors that quantify the block texels weights and color endpoint.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = start_block_mode; i &lt; end_block_mode; i++)<br>&#123;<br>	<span class="hljs-type">float</span> total_error = error_of_best + qwt_errors[i];<br>	errors_of_best_combination[i] = total_error;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>We only compute the rough estimation error up to the current step. The next step is to compute the exact error given a block mode. We need to compress and quantify the block texels for each block mode. Since it is an expensive process, we choose four candidate block modes based on the block mode estimation error.</p>
+<p>For each candidate block mode search iteration, find the block mode with the minimum error combining weight quant error and endpoint quant error, record the candidate block mode index:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">4</span>; i++)<br>&#123;<br>	<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">best_error_index</span><span class="hljs-params">(<span class="hljs-number">-1</span>)</span></span>;<br>	<span class="hljs-function"><span class="hljs-type">float</span> <span class="hljs-title">best_ep_error</span><span class="hljs-params">(ERROR_CALC_DEFAULT)</span></span>;<br><br>	<span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> j = start_block_mode; j &lt; end_block_mode; j++)<br>	&#123;<br>		<span class="hljs-type">float</span> err = errors_of_best_combination[j];<br>		<span class="hljs-type">bool</span> is_better = err &lt; best_ep_error;<br>		best_ep_error = is_better ? err : best_ep_error;<br>		best_error_index = is_better ? j : best_error_index;<br>	&#125;<br><br>	best_error_weights[i] = best_error_index;<br>	errors_of_best_combination[best_error_index] = ERROR_CALC_DEFAULT;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p align="center">
+    <img src="/resource/cuda_astc/image/candidate_block_mode.png" srcset="/img/loading.gif" lazyload width="80%" height="80%">
+</p>
+
+<h2 id="Find-The-Actually-Best-Mode"><a href="#Find-The-Actually-Best-Mode" class="headerlink" title="Find The Actually Best Mode"></a>Find The Actually Best Mode</h2><p>Iterate over the 4 candidate block modes to find which one is actually best by quantifying the block and computing the error after unquantifying.</p>
+<h3 id="RGB-Scale-Format-Quantification"><a href="#RGB-Scale-Format-Quantification" class="headerlink" title="RGB Scale Format Quantification"></a>RGB Scale Format Quantification</h3><p>As we quantize and decimate weights the optimal endpoint colors may change slightly, so we must recompute the ideal colors for a specific weight set.</p>
+<p>RGB scale format contains two parts: the base endpoint and the scale factor.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cpp">e0=(v0*v3&gt;&gt;<span class="hljs-number">8</span>,v1*v3&gt;&gt;<span class="hljs-number">8</span>,v2*v3&gt;&gt;<span class="hljs-number">8</span>, <span class="hljs-number">0xFF</span>);<br>e1=(v0,v1,v2,<span class="hljs-number">0xFF</span>);<br></code></pre></td></tr></table></figure>
+<p>Compute the scale direction by normalizing the mean color and projecting the block texels to the scale direction. In addition, recording the min&#x2F;max scale factor.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/rgb_scale.png" srcset="/img/loading.gif" lazyload width="50%" height="50%">
+</p>
+
+<p>Compute the base color and scale factor based on the scale direction and scale maximum factor.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">float</span> scalediv = scale_min / <span class="hljs-built_in">max</span>(scale_max, <span class="hljs-number">1e-10</span>f);<br>scalediv = <span class="hljs-built_in">clamp</span>(scalediv,<span class="hljs-number">0.0</span>,<span class="hljs-number">1.0</span>);<br><br>float4 sds = scale_dir * scale_max;<br>rgbs_vectors = <span class="hljs-built_in">make_float4</span>(sds.x, sds.y, sds.z, scalediv);<br></code></pre></td></tr></table></figure>
+
+<h3 id="Quantify-Endpoints"><a href="#Quantify-Endpoints" class="headerlink" title="Quantify Endpoints"></a>Quantify Endpoints</h3><p>Endpoint quantification is the same as interpolation weight quantification. There are only 17 possible quant levels and 255 possible values for each color channel. Therefore, the results can be stored in a precomputed table.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/color_quant_table.png" srcset="/img/loading.gif" lazyload width="70%" height="70%">
+</p>
+
+<h3 id="Error-Metric"><a href="#Error-Metric" class="headerlink" title="Error Metric"></a>Error Metric</h3><p>Given a candidate block mode, interpolate the texel color using quantized color endpoints and quantized weights. Compute the color difference and estimate the error using the squared error metric.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; texel_count; i++)<br>&#123;<br>	<span class="hljs-comment">// quantized weight * quantized endpoint</span><br><br>	<span class="hljs-type">float</span> color_error_r = <span class="hljs-built_in">fmin</span>(<span class="hljs-built_in">abs</span>(color_orig_r - color_r), <span class="hljs-built_in">float</span>(<span class="hljs-number">1e15</span>f));<br>	<span class="hljs-type">float</span> color_error_g = <span class="hljs-built_in">fmin</span>(<span class="hljs-built_in">abs</span>(color_orig_g - color_g), <span class="hljs-built_in">float</span>(<span class="hljs-number">1e15</span>f));<br>	<span class="hljs-type">float</span> color_error_b = <span class="hljs-built_in">fmin</span>(<span class="hljs-built_in">abs</span>(color_orig_b - color_b), <span class="hljs-built_in">float</span>(<span class="hljs-number">1e15</span>f));<br>	<span class="hljs-type">float</span> color_error_a = <span class="hljs-built_in">fmin</span>(<span class="hljs-built_in">abs</span>(color_orig_a - color_a), <span class="hljs-built_in">float</span>(<span class="hljs-number">1e15</span>f));<br><br>	<span class="hljs-comment">// Compute squared error metric</span><br>	color_error_r = color_error_r * color_error_r;<br>	color_error_g = color_error_g * color_error_g;<br>	color_error_b = color_error_b * color_error_b;<br>	color_error_a = color_error_a * color_error_a;<br><br>	<span class="hljs-type">float</span> metric = color_error_r + color_error_g + color_error_b + color_error_a;<br><br>	summa += metric;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Find the block mode with the minimum block error.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (errorval &lt; best_errorval_in_scb)<br>&#123;<br>	best_errorval_in_scb = errorval;<br>	workscb.errorval = errorval;<br>	scb = workscb;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h2 id="Block-Encode"><a href="#Block-Encode" class="headerlink" title="Block Encode"></a>Block Encode</h2><p>Having found the best block mode with the minimum error, we can finally encode the block.</p>
+<p>Below is a layout of the ASTC block. It contains the following parts in order: texel weight data, color endpoint data, color endpoint mode, extra data and block mode data.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/astc_block_mode_layout.png" srcset="/img/loading.gif" lazyload width="85%" height="85%">
+</p>
+
+<p>For texel weight, we scale the value based on the quant level of the best block mode. In order to improve the decoding efficiency, ASTC scrambles the order of the decoded values relative to the encoded values, which means that it must be compensated for in the encoder using a table.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">uint8_t</span> weights[<span class="hljs-number">64</span>];<br><span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; weight_count; i++)<br>&#123;<br>	<span class="hljs-type">float</span> uqw = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">float</span>&gt;(scb.weights[i]);<br>	<span class="hljs-type">float</span> qw = (uqw / <span class="hljs-number">64.0f</span>) * (weight_quant_levels - <span class="hljs-number">1.0f</span>);<br>	<span class="hljs-type">int</span> qwi = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">int</span>&gt;(qw + <span class="hljs-number">0.5f</span>);<br>	weights[i] = qat.scramble_map[qwi];<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>Once unpacked, the values must be unquantized from their storage range, returning them to a standard range of 0- 255.<br>For bit-only representations, this is simple bit replication from the most significant bit of the value.<br>For trit or quint-based representations, this involves a set of bit manipulations and adjustments to avoid the expense of full-width multipliers. This procedure ensures correct scaling, but scrambles the order of the decoded values relative to the encoded values. This must be compensated for using a table in the encoder.</p>
+</blockquote>
+<p>The scramble map table is precomputed:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/scramble_table.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<p>Next, encode the integer sequence based on the Quant method. Assume that we encode the integer sequence using the Quant_80 method. Quant_80 method quantifies the integer sequence in quints form. Since 5^3 is 125, it is possible to pack three quints into 7 bits (which has 128 possible values), so a quint can be encoded as 2.33 bits. </p>
+<p>We split the integer into higher and lower parts and pack three integers’ higher parts into seven bits. The result is precomputed and stored in a lookup table.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i2 = input_data[i + <span class="hljs-number">2</span>] &gt;&gt; bits;<br><span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i1 = input_data[i + <span class="hljs-number">1</span>] &gt;&gt; bits;<br><span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i0 = input_data[i + <span class="hljs-number">0</span>] &gt;&gt; bits;<br><br><span class="hljs-type">uint8_t</span> T = integer_of_quints[i2][i1][i0];<br></code></pre></td></tr></table></figure>
+
+<p>Then, pack the result with the lower part of the integer.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// Element 0</span><br>pack = (input_data[i++] &amp; mask) | (((T &gt;&gt; <span class="hljs-number">0</span>) &amp; <span class="hljs-number">0x7</span>) &lt;&lt; bits);<br><span class="hljs-built_in">write_bits</span>(pack, bits + <span class="hljs-number">3</span>, bit_offset, output_data);<br>bit_offset += bits + <span class="hljs-number">3</span>;<br><br><span class="hljs-comment">// Element 1</span><br>pack = (input_data[i++] &amp; mask) | (((T &gt;&gt; <span class="hljs-number">3</span>) &amp; <span class="hljs-number">0x3</span>) &lt;&lt; bits);<br><span class="hljs-built_in">write_bits</span>(pack, bits + <span class="hljs-number">2</span>, bit_offset, output_data);<br>bit_offset += bits + <span class="hljs-number">2</span>;<br><br><span class="hljs-comment">// Element 2</span><br>pack = (input_data[i++] &amp; mask) | (((T &gt;&gt; <span class="hljs-number">5</span>) &amp; <span class="hljs-number">0x3</span>) &lt;&lt; bits);<br><span class="hljs-built_in">write_bits</span>(pack, bits + <span class="hljs-number">2</span>, bit_offset, output_data);<br>bit_offset += bits + <span class="hljs-number">2</span>;<br></code></pre></td></tr></table></figure>
+<p>The color endpoint packing is the same as the texel weight packing.</p>
+<h1 id="GPU-Based-Implementation"><a href="#GPU-Based-Implementation" class="headerlink" title="GPU Based Implementation"></a>GPU Based Implementation</h1><p>There are two ways to accelerate ASTC block compression: task parallel and data parallel. The task parallel is compressing the texture block per thread.  The task parallel for ASTC block compression is heavy and uses many registers. This means that the number of active warps is low and we have low occupancy. Therefore, we can’t make full use of GPU for task parallel.  </p>
+<p>For data parallel, we compress the ASTC block per cuda block. The GPU-based implementation references the CPU implementation. It splits the “for loop” task into each thread and shares the data between lanes by warp shuffle as possible as we can. For those data that can’t be efficiently shared by warp shuffle, we use shared memory to exchange the data.</p>
+<h2 id="Compute-Endpoints"><a href="#Compute-Endpoints" class="headerlink" title="Compute Endpoints"></a>Compute Endpoints</h2><p>The first step is computing the best projection direction for the current block. Before this step, we load the image pixel data per thread and compute the mean pixel data by warp reduce sum operation. Then we broadcast the mean data to the whole warp.</p>
+<p>Since the ASTC format 4x4 only has 16 texels to compress and the warp size on N-card is 32, we should mask the lanes used for block texels loading and sum operation.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">unsigned</span> mask = __ballot_sync(<span class="hljs-number">0xFFFFFFFF</span>u, tid &lt; BLOCK_MAX_TEXELS);<br></code></pre></td></tr></table></figure>
+
+<p>We use the max accumulation direction method to compute the best direction, which is the same as the CPU-based implementation. Each lane computes the offset direction relative to the mean block color. Then, we perform warp reduce to compute the sum of the offsets in the xyz direction.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/compute_avgs_and_dirs_3_comp_cuda.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<p>If the lane ID is 0, compute and normalize the best direction based on the length of the sum of offsets in each direction.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">__inline__ __device__ float3 <span class="hljs-title">compute_avgs_and_dirs_3_comp</span><span class="hljs-params">(float3 datav,float3 data_mean, <span class="hljs-type">uint32_t</span> lane_id, <span class="hljs-type">unsigned</span> mask)</span></span><br><span class="hljs-function"></span>&#123;<br>	float3 safe_dir;<br>	float3 texel_datum = datav - data_mean;<br><br>	float3 valid_sum_xp = (texel_datum.x &gt; <span class="hljs-number">0</span> ? texel_datum : <span class="hljs-built_in">float3</span>(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>));<br>	float3 valid_sum_yp = (texel_datum.y &gt; <span class="hljs-number">0</span> ? texel_datum : <span class="hljs-built_in">float3</span>(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>));<br>	float3 valid_sum_zp = (texel_datum.z &gt; <span class="hljs-number">0</span> ? texel_datum : <span class="hljs-built_in">float3</span>(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>));<br><br>	float3 sum_xp = <span class="hljs-built_in">warp_reduce_vec_sum</span>(mask, valid_sum_xp);<br>	float3 sum_yp = <span class="hljs-built_in">warp_reduce_vec_sum</span>(mask, valid_sum_yp);<br>	float3 sum_zp = <span class="hljs-built_in">warp_reduce_vec_sum</span>(mask, valid_sum_zp);<br><br>	<span class="hljs-keyword">if</span> (lane_id == <span class="hljs-number">0</span>)<br>	&#123;<br>		<span class="hljs-type">float</span> prod_xp = <span class="hljs-built_in">dot</span>(sum_xp, sum_xp);<br>		<span class="hljs-type">float</span> prod_yp = <span class="hljs-built_in">dot</span>(sum_yp, sum_yp);<br>		<span class="hljs-type">float</span> prod_zp = <span class="hljs-built_in">dot</span>(sum_zp, sum_zp);<br><br>		float3 best_vector = sum_xp;<br>		<span class="hljs-type">float</span> best_sum = prod_xp;<br><br>		<span class="hljs-keyword">if</span> (prod_yp &gt; best_sum)<br>		&#123;<br>			best_vector = sum_yp;<br>			best_sum = prod_yp;<br>		&#125;<br><br>		<span class="hljs-keyword">if</span> (prod_zp &gt; best_sum)<br>		&#123;<br>			best_vector = sum_zp;<br>			best_sum = prod_zp;<br>		&#125;<br><br>		<span class="hljs-keyword">if</span> ((best_vector.x + best_vector.y + best_vector.z) &lt; <span class="hljs-number">0.0f</span>)<br>		&#123;<br>			best_vector = -best_vector;<br>		&#125;<br><br>		<span class="hljs-type">float</span> length_dir = <span class="hljs-built_in">length</span>(best_vector);<br>		safe_dir = (length_dir &lt; <span class="hljs-number">1e-10</span>) ? <span class="hljs-built_in">normalize</span>(<span class="hljs-built_in">make_float3</span>(<span class="hljs-number">1.0</span>)) : <span class="hljs-built_in">normalize</span>(best_vector);<br>	&#125;<br>	<span class="hljs-keyword">return</span> safe_dir;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Compute the interpolation weight for each block texels. First, broadcast the best direction to the whole warp and project the texel data to the best direction. Then, use __shfl_xor_sync to compute the min&#x2F;max value. With the min&#x2F;max value, we can compute the scaled weight and store the result in shared memory.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/compute_ideal_colors_and_weights_4_comp.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<h2 id="Find-The-Candidate-Block-Mode-1"><a href="#Find-The-Candidate-Block-Mode-1" class="headerlink" title="Find The Candidate Block Mode"></a>Find The Candidate Block Mode</h2><p>Our algorithm is based on the arm astc-enc implementation. However, we can’t port the astc-enc to Cuda directly. The astc-enc implementation has a large number of intermediate buffers during candidate block mode searching, which has little performance impact on CPU-based implementations, but has a significant impact on GPU-based implementations.</p>
+<p>Here is a brief introduction to how astc-enc finds the candidate block mode:</p>
+<p>1.Compute the quant error for each block mode and store the result and quant bits used in an intermediate buffer with the size of 2048 * (float + uint8)</p>
+<p>2.For each block mode, compute the best combination with the candidate color quant format. This step has 3 intermediate buffers: best combination error buffer with the size of 2048xfloat, best color quant level buffer with the size of 2048xuint8, best endpoint format with the size of 2048xuint. </p>
+<p>3.Choose 4 best candidate block mode and compute the more accurate error.</p>
+<p>4.Compress the block using the best block mode</p>
+<p>A lot of memory is wasted on the intermediate buffer. We have optimized this algorithm by in-place update, which removes the usage of the intermediate buffer:</p>
+<p>1.Maintain a buffer recording the 4 candidate quant formats. </p>
+<p>2.Iterate the block mode, compute the interpolation weight quant error, the best combination with the color quant format.</p>
+<p>3.Compare with the candidate quant format stored in the step 1. Replace the candidate mode that has a larger error to current quant format.</p>
+<p>4.Other steps are the same as the astc-enc implementation.</p>
+<h3 id="Prepare"><a href="#Prepare" class="headerlink" title="Prepare"></a>Prepare</h3><p>Before iterating 2048 candidate block modes, we need to prepare some infomation used in block quant error computation.</p>
+<p>The first one is the color endpoint format error for scale-based color endpoints or luminance-based color endpoints. We compute the errors for each block pixel and sum up the error by warp reduction. Then store the results in shared memory.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-comment">// Luminance always goes though zero, so this is simpler than the others</span><br><span class="hljs-type">float</span> val = <span class="hljs-number">0.577350258827209473f</span>;<br>luminance_plines.amod = <span class="hljs-built_in">make_float3</span>(<span class="hljs-number">0</span>);<br>luminance_plines.bs = <span class="hljs-built_in">make_float3</span>(val, val, val);<br><br><span class="hljs-comment">// Compute uncorrelated error</span><br><span class="hljs-type">float</span> param = <span class="hljs-built_in">dot</span>(datav, uncor_rgb_plines.bs);<br>float3 dist = (uncor_rgb_plines.amod + param * uncor_rgb_plines.bs) - datav;<br><span class="hljs-type">float</span> uncor_err = <span class="hljs-built_in">dot</span>(dist, dist);<br><br><span class="hljs-comment">// Compute same chroma error - no &quot;amod&quot;, its always zero</span><br>param = <span class="hljs-built_in">dot</span>(datav, samec_rgb_plines.bs);<br>dist = param * samec_rgb_plines.bs - datav;<br><span class="hljs-type">float</span> samec_err = <span class="hljs-built_in">dot</span>(dist, dist);<br><br><span class="hljs-comment">// Compute luma error - no &quot;amod&quot;, its always zero</span><br>param = <span class="hljs-built_in">dot</span>(datav, luminance_plines.bs);<br>dist = param * luminance_plines.bs - datav;<br><span class="hljs-type">float</span> l_err = <span class="hljs-built_in">dot</span>(dist, dist);<br><br><span class="hljs-keyword">if</span> (tid == <span class="hljs-number">0</span>)<br>&#123;<br>	shared_data_mean = data_mean;<br>	shared_scale_dir = samec_rgb_lines.b;<br>&#125;<br><br>__syncwarp(mask);<br><br><span class="hljs-type">float</span> sum_uncor_err = <span class="hljs-built_in">warp_reduce_sum</span>(mask, uncor_err);<br><span class="hljs-type">float</span> sum_samec_err = <span class="hljs-built_in">warp_reduce_sum</span>(mask, samec_err);<br><span class="hljs-type">float</span> sum_l_err = <span class="hljs-built_in">warp_reduce_sum</span>(mask, l_err);<br><br><span class="hljs-keyword">if</span> (lane_id == <span class="hljs-number">0</span>)<br>&#123;<br>	shared_rgb_scale_error = (sum_samec_err - sum_uncor_err) * <span class="hljs-number">0.7f</span>;<span class="hljs-comment">// empirical</span><br>	shared_luminance_error = (sum_l_err - sum_uncor_err) * <span class="hljs-number">3.0f</span>;<span class="hljs-comment">// empirical</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>Color endpoint has 21 quant methods and 4 kind of interger number to quant with total 21*4 possible combinations. We precomputed the result before block mode iteration. Each thread computes one error for one quant method and stores the result in shared memory.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-function">__inline__ __device__ <span class="hljs-type">void</span> <span class="hljs-title">compute_color_error_for_every_integer_count_and_quant_level</span><span class="hljs-params">(<span class="hljs-type">const</span> block_size_descriptor* <span class="hljs-type">const</span> bsd, <span class="hljs-type">uint32_t</span> tid)</span></span><br><span class="hljs-function"></span>&#123;<br>	<span class="hljs-type">int</span> choice_error_idx = tid;<br>	<span class="hljs-keyword">if</span> (choice_error_idx &gt;= QUANT_2 &amp;&amp; choice_error_idx &lt; QUANT_6)<br>	&#123;<br>		shared_best_error[choice_error_idx][<span class="hljs-number">3</span>] = ERROR_CALC_DEFAULT;<br>		shared_best_error[choice_error_idx][<span class="hljs-number">2</span>] = ERROR_CALC_DEFAULT;<br>		shared_best_error[choice_error_idx][<span class="hljs-number">1</span>] = ERROR_CALC_DEFAULT;<br>		shared_best_error[choice_error_idx][<span class="hljs-number">0</span>] = ERROR_CALC_DEFAULT;<br><br>		shared_format_of_choice[choice_error_idx][<span class="hljs-number">3</span>] = FMT_RGBA;<br>		shared_format_of_choice[choice_error_idx][<span class="hljs-number">2</span>] = FMT_RGB;<br>		shared_format_of_choice[choice_error_idx][<span class="hljs-number">1</span>] = FMT_RGB_SCALE;<br>		shared_format_of_choice[choice_error_idx][<span class="hljs-number">0</span>] = FMT_LUMINANCE;<br>	&#125;<br><br>	<span class="hljs-type">float</span> base_quant_error_rgb = <span class="hljs-number">3</span> * bsd-&gt;texel_count;<br>	<span class="hljs-type">float</span> base_quant_error_a = <span class="hljs-number">1</span> * bsd-&gt;texel_count;<br>	<span class="hljs-type">float</span> base_quant_error_rgba = base_quant_error_rgb + base_quant_error_a;<br><br>	<span class="hljs-keyword">if</span> (choice_error_idx &gt;= QUANT_6 &amp;&amp; choice_error_idx &lt;= QUANT_256)<br>	&#123;<br>		<span class="hljs-type">float</span> base_quant_error = baseline_quant_error[choice_error_idx - QUANT_6];<br>		<span class="hljs-type">float</span> quant_error_rgb = base_quant_error_rgb * base_quant_error;<br>		<span class="hljs-type">float</span> quant_error_rgba = base_quant_error_rgba * base_quant_error;<br><br>		<span class="hljs-comment">// 8 integers can encode as RGBA+RGBA</span><br>		<span class="hljs-type">float</span> full_ldr_rgba_error = quant_error_rgba;<br>		shared_best_error[choice_error_idx][<span class="hljs-number">3</span>] = full_ldr_rgba_error;<br>		shared_format_of_choice[choice_error_idx][<span class="hljs-number">3</span>] = FMT_RGBA;<br><br>		<span class="hljs-comment">// 6 integers can encode as RGB+RGB or RGBS+AA</span><br>		<span class="hljs-type">float</span> full_ldr_rgb_error = quant_error_rgb + <span class="hljs-number">0</span>;<br>		<span class="hljs-type">float</span> rgbs_alpha_error = quant_error_rgba + shared_rgb_scale_error;<br><br>		<span class="hljs-keyword">if</span> (rgbs_alpha_error &lt; full_ldr_rgb_error)<br>		&#123;<br>			shared_best_error[choice_error_idx][<span class="hljs-number">2</span>] = rgbs_alpha_error;<br>			shared_format_of_choice[choice_error_idx][<span class="hljs-number">2</span>] = FMT_RGB_SCALE_ALPHA;<br>		&#125;<br>		<span class="hljs-keyword">else</span><br>		&#123;<br>			shared_best_error[choice_error_idx][<span class="hljs-number">2</span>] = full_ldr_rgb_error;<br>			shared_format_of_choice[choice_error_idx][<span class="hljs-number">2</span>] = FMT_RGB;<br>		&#125;<br><br>		<span class="hljs-comment">// 4 integers can encode as RGBS or LA+LA</span><br>		<span class="hljs-type">float</span> ldr_rgbs_error = quant_error_rgb + <span class="hljs-number">0</span> + shared_rgb_scale_error;<br>		<span class="hljs-type">float</span> lum_alpha_error = quant_error_rgba + shared_luminance_error;<br><br>		<span class="hljs-keyword">if</span> (ldr_rgbs_error &lt; lum_alpha_error)<br>		&#123;<br>			shared_best_error[choice_error_idx][<span class="hljs-number">1</span>] = ldr_rgbs_error;<br>			shared_format_of_choice[choice_error_idx][<span class="hljs-number">1</span>] = FMT_RGB_SCALE;<br>		&#125;<br>		<span class="hljs-keyword">else</span><br>		&#123;<br>			shared_best_error[choice_error_idx][<span class="hljs-number">1</span>] = lum_alpha_error;<br>			shared_format_of_choice[choice_error_idx][<span class="hljs-number">1</span>] = FMT_LUMINANCE_ALPHA;<br>		&#125;<br><br>		<span class="hljs-comment">// 2 integers can encode as L+L</span><br>		<span class="hljs-type">float</span> luminance_error = quant_error_rgb + <span class="hljs-number">0</span> + shared_luminance_error;<br><br>		shared_best_error[choice_error_idx][<span class="hljs-number">0</span>] = luminance_error;<br>		shared_format_of_choice[choice_error_idx][<span class="hljs-number">0</span>] = FMT_LUMINANCE;<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="Block-Mode-Iteration"><a href="#Block-Mode-Iteration" class="headerlink" title="Block Mode Iteration"></a>Block Mode Iteration</h3><p>To make full use of the GPU, we process 2 block modes for each block mode iteration. Each processed block mode is handled by 16 threads, which is half the size of the warp. </p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> max_block_modes = bsd-&gt;block_mode_count_1plane_selected;<br><span class="hljs-type">int</span> block_mode_process_idx = <span class="hljs-number">0</span>;<br><span class="hljs-keyword">while</span> (block_mode_process_idx &lt; max_block_modes)<br>&#123;<br>	__syncwarp();<br><br>	<span class="hljs-type">int</span> sub_block_idx = tid / <span class="hljs-number">16</span>;<br>	<span class="hljs-type">int</span> in_block_idx = tid % <span class="hljs-number">16</span>;<br><br>	<span class="hljs-type">int</span> global_idx = sub_block_idx + block_mode_process_idx; <span class="hljs-comment">// ignore the last block mode for now</span><br>	<span class="hljs-type">bool</span> is_block_mode_index_valid = (block_mode_process_idx + <span class="hljs-number">1</span>) &lt; max_block_modes;<br>	<span class="hljs-keyword">if</span> (is_block_mode_index_valid)<br>	&#123;<br>		<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>In the arm astc-enc implementation, weight quant errors are computed separately from color endpoint quant errors. The process generates a lot of intermediate buffers. To optimize intermediate buffer usage, we combine the separate passes together and update the total error in-place.</p>
+<p>We compute the difference between quanted weights and unquantified weights per thread. The quant error of the block mode is computed by summing the squared texel error using warp reduction.</p>
+<p>For each block mode, dispatch four threads to compute the combined error for four endpoint quant formats: integer number 1 to integer number 4. Then, use __shfl_xor_sync to find the best endpoint quant format with minimum error.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/blcok_mode_iteration.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<p>We maintain a shared candidate block mode buffer with 4 actual candidate block modes and 2 block modes updated during each iteration. The last two block modes (4 + 0 and 4 + 1) are used for final GPU sorting.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (in_block_idx == <span class="hljs-number">0</span>)<br>&#123;<br>	best_integer_count_error = integer_count_error;<br><br>	<span class="hljs-type">int</span> ql = quant_mode_table[best_integer_count + <span class="hljs-number">1</span>][bitcount];<br><br>	<span class="hljs-type">uint8_t</span> best_quant_level = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">uint8_t</span>&gt;(ql);<br>	<span class="hljs-type">uint8_t</span> best_format = FMT_LUMINANCE;<br><br>	<span class="hljs-keyword">if</span> (ql &gt;= QUANT_6)<br>	&#123;<br>		best_format = shared_format_of_choice[ql][best_integer_count];<br>	&#125;<br><br>	<span class="hljs-type">float</span> total_error = best_integer_count_error + error;<br><br>	candidate_ep_format_specifiers[<span class="hljs-number">4</span> + sub_block_idx] = best_format;<br>	candidate_block_mode_index[<span class="hljs-number">4</span> + sub_block_idx] = global_idx;<br>	candidate_color_quant_level[<span class="hljs-number">4</span> + sub_block_idx] = ql;<br>	candidate_combine_errors[<span class="hljs-number">4</span> + sub_block_idx] = total_error;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>When current block mode iterations have been completed, perform a GPU sorting. The first four candidate block modes are used in the next pass.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (tid &lt; <span class="hljs-number">6</span>)<br>&#123;<br>	<span class="hljs-type">int</span> num_samller = <span class="hljs-number">0</span>;<br>	<span class="hljs-type">float</span> current_tid_error = candidate_combine_errors[tid];<br>	<span class="hljs-type">float</span> current_ep_format_specifier = candidate_ep_format_specifiers[tid];<br>	<span class="hljs-type">int</span> current_blk_mode_idx = candidate_block_mode_index[tid];<br>	<span class="hljs-type">int</span> current_col_quant_level = candidate_color_quant_level[tid];<br><br>	<span class="hljs-meta">#<span class="hljs-keyword">pragma</span> unroll</span><br>	<span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> candiate_idx = <span class="hljs-number">0</span>; candiate_idx &lt; <span class="hljs-number">6</span>; candiate_idx++)<br>	&#123;<br>		<span class="hljs-type">float</span> other_candidate_error = candidate_combine_errors[candiate_idx];<br>		<span class="hljs-keyword">if</span> ((other_candidate_error &lt; current_tid_error) || ((other_candidate_error == current_tid_error) &amp;&amp; (candiate_idx &lt; tid)))<br>		&#123;<br>			num_samller++;<br>		&#125;<br>	&#125;<br><br>	<span class="hljs-comment">// 0011 1111</span><br>	__syncwarp(<span class="hljs-number">0x0000003F</span>);<br>	candidate_combine_errors[num_samller] = current_tid_error;<br>	candidate_ep_format_specifiers[num_samller] = current_ep_format_specifier;<br>	candidate_block_mode_index[num_samller] = current_blk_mode_idx;<br>	candidate_color_quant_level[num_samller] = current_col_quant_level;<br>&#125;<br></code></pre></td></tr></table></figure>
+<h2 id="Find-The-Best-Block-Mode"><a href="#Find-The-Best-Block-Mode" class="headerlink" title="Find The Best Block Mode"></a>Find The Best Block Mode</h2><p>We get four block mode candidates after all block mode iterations are complete. However, to accelerate block mode seraching, the candidate block modes are selected by approximate error instead of the actual difference between the original color and the compressed color. So, in the current pass, we quantify the interpolation weights and color endpoints and compute the exact difference between compressed color and original color.</p>
+<p>The exact best block mode is stored in shared memory that will be used in the final block mode compression.</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/compute_symbolic_block_difference_1plane_1partition.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<h2 id="Compress-the-block-mode"><a href="#Compress-the-block-mode" class="headerlink" title="Compress the block mode"></a>Compress the block mode</h2><p>The final block mode compression is the same as the CPU-based implementation.</p>
+<p>after astc compression:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/before_astc_comression.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+<p>before astc compression:</p>
+<p align="center">
+    <img src="/resource/cuda_astc/image/after_astc_compression.png" srcset="/img/loading.gif" lazyload width="65%" height="65%">
+</p>
+
+
+<p><a target="_blank" rel="noopener" href="https://github.com/ShawnTSH1229/fgac"><u><strong>GPU ASTC Compression Source Code</strong></u></a></p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>ASTC Compression Accleration Using CUDA</div>
+      <div>http://example.com/2024/06/18/ASTC-Compression-Using-CUDA/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>Author</div>
+          <div>Shawn Tang</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>Posted on</div>
+          <div>June 18, 2024</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>Licensed under</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - Attribution">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2024/06/30/Bindless-Vulkan-Ray-Tracing-In-Cry-Engine/" title="Bindless Vulkan Ray Tracing In Cry Engine">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Bindless Vulkan Ray Tracing In Cry Engine</span>
+                        <span class="visible-mobile">Previous</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2024/06/14/GI-Baking-With-Ray-Guiding/" title="GI Baking With Ray Guiding">
+                        <span class="hidden-mobile">GI Baking With Ray Guiding</span>
+                        <span class="visible-mobile">Next</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>Table of Contents</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">Search</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">Keyword</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">Blog works best with JavaScript enabled</div>
+  </noscript>
+</body>
+</html>
