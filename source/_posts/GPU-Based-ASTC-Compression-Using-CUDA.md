@@ -141,7 +141,6 @@ Compute the mean color value and the main color direction first. There are many 
 	float prod_zp = dot(sum_zp, sum_zp);
 	float prod_wp = dot(sum_wp, sum_wp);
 ```
-
 Use the maximum sum direction as the main direction
 
 ```cpp
