@@ -2,6 +2,7 @@
 title: How To Develop A PlayStation 4 Emulator(1)
 date: 2024-07-05 23:15:36
 tags:
+index_img: /resource/pset/image/PS4Emulator.png
 ---
 # Overview
 # ELF Loader & Parser
@@ -793,7 +794,7 @@ Although the emulator compiles and runs successfully, we didn't get the expected
     <img src="/resource/pset/image/unimplemented_funcs.png" width="85%" height="85%">
 </p>
 
-All output logs are "unimplemented functions: xxxxxx", since we haven't implemented them. In the [<u>**next blog**</u>](https://github.com/idc/ps4libdoc), we will implement these functions in the PS4 built-in shared library.  
+All output logs are "unimplemented functions: xxxxxx", since we haven't implemented them. In the [<u>**next blog**</u>](https://shawntsh1229.github.io/2024/07/07/How-To-Develop-A-PlayStation-4-Emulator-2/), we will implement these functions in the PS4 built-in shared library.  
 
 [<u>**TODO:TODO:PS4 Emulator Source Code**</u>](https://github.com/ShawnTSH1229/VkRtInCryEngine)
 
