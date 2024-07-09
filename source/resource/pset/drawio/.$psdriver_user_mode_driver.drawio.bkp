@@ -1,0 +1,58 @@
+<mxfile host="Electron" modified="2024-07-09T14:47:13.071Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="BCdc802P_VHyh8gTwPlU" version="24.2.5" type="device">
+  <diagram name="Page-1" id="0EtKFH_yeUswPPRqUbHq">
+    <mxGraphModel dx="2074" dy="1205" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-13" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="50" y="360" width="790" height="410" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-18" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="404" y="380" width="420" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-1" value="GNM (Application)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="390" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-2" value="User Mode Driver" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="500" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-3" value="Operating System" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="610" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-4" value="Kernel Mode Driver" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="720" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-7" value="Concept of Command Buffers" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="414" y="390" width="286" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-8" value="Prepare a bunch of commands that tell the GPU what to do" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=0;fontSize=15;" vertex="1" parent="1">
+          <mxGeometry x="414" y="450" width="400" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-9" value="sceGnmDrawInitDefaultHardwareState" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="414" y="510" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-10" value="sceGnmSetVsShader" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="414" y="560" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-11" value="sceGnmDrawIndex" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="414" y="610" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-12" value="sceGnmSubmitDone" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="414" y="660" width="330" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-14" value="" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="160" y="440" width="30" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-15" value="" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="160" y="550" width="30" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-17" value="" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="160" y="660" width="30" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-20" value="" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="300" y="390" width="90" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

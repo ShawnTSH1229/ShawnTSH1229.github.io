@@ -1,0 +1,72 @@
+<mxfile host="Electron" modified="2024-07-09T15:51:54.213Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="kQEJzOzeCHNdbkNpuk2p" version="24.2.5" type="device">
+  <diagram name="Page-1" id="0EtKFH_yeUswPPRqUbHq">
+    <mxGraphModel dx="2074" dy="1205" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-13" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" parent="1" vertex="1">
+          <mxGeometry x="50" y="360" width="790" height="410" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-29" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="404" y="500" width="420" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-18" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="404" y="380" width="420" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-1" value="GNM (Application)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="60" y="390" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-2" value="User Mode Driver" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="60" y="500" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-3" value="Operating System" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="60" y="610" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-4" value="Kernel Mode Driver" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#f8cecc;strokeColor=#b85450;" parent="1" vertex="1">
+          <mxGeometry x="60" y="720" width="230" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-7" value="PM4 Packets" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=20;" parent="1" vertex="1">
+          <mxGeometry x="414" y="390" width="286" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-8" value="Represent the API commands in a way that can be executed by the GPU." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=0;fontSize=15;" parent="1" vertex="1">
+          <mxGeometry x="414" y="430" width="406" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-14" value="" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="160" y="440" width="30" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-15" value="" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="160" y="550" width="30" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-17" value="" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
+          <mxGeometry x="160" y="660" width="30" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-20" value="" style="shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="300" y="490" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-23" value="&lt;span style=&quot;font-size: 15px; text-align: center;&quot;&gt;User Mode Driver&lt;/span&gt;" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=20;" parent="1" vertex="1">
+          <mxGeometry x="420" y="520" width="286" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-28" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="QSqcfk-7Tip9ZLl0hiTW-24" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="540" y="680" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-24" value="GNM API" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+          <mxGeometry x="420" y="560" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-25" value="&lt;p data-pm-slice=&quot;1 1 []&quot; data-wt-guid=&quot;1e372940-47ef-4e5f-9685-29aee5626a91&quot; class=&quot;pb-2 min-w-[1px]&quot;&gt;Platform Abstraction Library&lt;/p&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+          <mxGeometry x="420" y="620" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-27" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="QSqcfk-7Tip9ZLl0hiTW-24" target="QSqcfk-7Tip9ZLl0hiTW-25" edge="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="740" as="sourcePoint" />
+            <mxPoint x="440" y="690" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="QSqcfk-7Tip9ZLl0hiTW-30" value="&lt;p data-pm-slice=&quot;1 1 []&quot; data-wt-guid=&quot;1e372940-47ef-4e5f-9685-29aee5626a91&quot; class=&quot;pb-2 min-w-[1px]&quot;&gt;PM4 Packets&lt;/p&gt;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+          <mxGeometry x="420" y="680" width="240" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
