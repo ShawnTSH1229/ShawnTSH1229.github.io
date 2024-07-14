@@ -6,13 +6,13 @@ index_img: /resource/pset/image/PS4Emulator.png
 ---
 # Overview
 
-PSET4 is a tiny PlayStation 4 emulator. I wrote this project for graphics driver learning. There are many open source PS4 emulators, such as FPCS4 and GPCS4. These projects helped me greatly during PSET4 programming.  Skelattack is the only game I have tested. Other games are not guaranteed to run successfully. 
+PSET4 is a tiny PlayStation 4 emulator. I wrote this project for **graphics driver** learning. There are many open source PS4 emulators, such as FPCS4 and GPCS4. These projects helped me greatly during PSET4 programming.  Skelattack is the only game I have tested. Other games are not guaranteed to run successfully. 
 
-Our project consists of four parts. The first part is load and parse the ELF. PS4 uses an extended ELF format named SELF (Signed Executable and Linkable Format) to store the executable file. We convert SELF to ELF and parse it to get information about the game program, such as the symbols, used libraries and initial parameters. Then, we allocate virtual memory and load the modules into memory.
+Our project consists of four parts. The first part is **load and parse the ELF**. PS4 uses an extended ELF format named **SELF (Signed Executable and Linkable Format)** to store the executable file. We convert SELF to ELF and parse it to get information about the game program, such as the symbols, used libraries and initial parameters. Then, we allocate virtual memory and load the modules into memory.
 
-The second part is dynamic link. We have loaded the segment into memory. However, the memory address of the symbols using dynamic link have not been determined. We shall perform dynamic link for those symbols.
+The second part is **dynamic link**. We have loaded the segment into memory. However, the memory address of the symbols using dynamic link have not been determined. We shall perform dynamic link for those symbols.
 
-The third part is to implement PS4's built-in libraries. Some shared libraries are exclusive to PlayStation4, such as the libSceGnmDriver library and the libSceAudioOut library. Those libraries can’t be loaded and parsed from the game’s source code, since they are a built-in library in PlayStation4 and there is no need to pack them into the game source code. Therefore, we must implement these PS4's built-in libraries by ourselves.
+The third part is to **implement PS4's built-in libraries**. Some shared libraries are exclusive to PlayStation4, such as the libSceGnmDriver library and the libSceAudioOut library. Those libraries can't be loaded and parsed from the game's source code, since they are a built-in library in PlayStation4 and there is no need to pack them into the game source code. Therefore, we must implement these PS4's built-in libraries by ourselves.
 
 The fourth part is graphics. We will detail it in the next blog.
 
@@ -807,7 +807,7 @@ Although the emulator compiles and runs successfully, we didn't get the expected
 
 All output logs are "unimplemented functions: xxxxxx", since we haven't implemented them. In the [<u>**next blog**</u>](https://shawntsh1229.github.io/2024/07/07/How-To-Develop-A-PlayStation-4-Emulator-2/), we will detail how to implement the graphics driver. As we only focus on graphics, we won't discuss how to implement other non-graphics built-in libraries in PS4, like libkernel. 
 
-[<u>**TODO:TODO:PS4 Emulator Source Code**</u>](https://github.com/ShawnTSH1229/VkRtInCryEngine)
+[<u>**PS4 Emulator Source Code**</u>](https://github.com/ShawnTSH1229/pset4)
 
 
 
