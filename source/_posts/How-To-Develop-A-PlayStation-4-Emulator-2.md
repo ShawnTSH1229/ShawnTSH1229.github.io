@@ -7,7 +7,9 @@ index_img: /resource/pset/image/PS4Emulator.png
 
 # Overview
 
+AMD Graphics driver has four levels. The first level is GNM application level. This level is implemented by the game engine or the game developer. After that, the user mode driver translates the GNM API into PM4 packets. PM4 packets represent API commands in a way that GPUs can execute. The user mode driver library is PS4's built-in library. We have implemented a custom GNM driver to replace the built-in library. Then, Operating System gets the prepared command buffer from the user mode driver. Hands it over to the kernel mode driver. Finally, the kernel mode driver uses a ring buffer to communicate with the GPU. We implemented a command processor to process PM4 packets in order to simulate the kernel mode driver.
 
+Our command processor is designed to simulate setting GPU registers. These GPU registers include user data registers, blend state registers, depth state registers etc.  And we have implemented an AMD ISA converter to parse AMD ISA and translate it into Spirv. Finally, with these GPU registers and spirv have been prepared, we translate them into Vulkan API and rendering the game.
 
 # Graphics Libraries
 
@@ -679,6 +681,11 @@ for (int32_t z = 0; z < tiler.m_linearDepth; z++)
 ```
 ### Pipeline State And Draw Index
 
+After all resources and GPU registers have been prepared, we can finally set the pipeline state.
+The depth stencil states are obtained from the `DEPTH_CONTROL` register.
+The render target states are obtained from the `RENDER_TARGET` register.
+The color blend state is obtained from the `CB_COLOR_CONTROL` register.
+
 ```cpp
 CRHIDepthStencilState depthStencilState;
 depthStencilState.bDepthTestEnable = GetGpuRegs()->DEPTH.DEPTH_CONTROL.bitfields.Z_ENABLE;
@@ -686,10 +693,17 @@ depthStencilState.bDepthWriteEnable = GetGpuRegs()->DEPTH.DEPTH_CONTROL.bitfield
 depthStencilState.zFunc = GetGpuRegs()->DEPTH.DEPTH_CONTROL.bitfields.ZFUNC;
 ```
 
+```cpp
+graphicsPsoInitDesc.m_pipelineColorBlendControl = GetGpuRegs()->CB_COLOR_CONTROL;
+```
 
+We translate these registers into the Vulkan state and set the graphics pipeline state.
+```cpp
+std::shared_ptr<CRHIGraphicsPipelineState> graphicsPipelineState = RHICreateGraphicsPipelineState(graphicsPsoInitDesc);
+gRHICommandList.RHISetGraphicsPipelineState(graphicsPipelineState);
+```
 
-
-
+When we process the draw index PM4 packet (OP_CUS_DRAW_INDEX), we set the pipeline state, get the index buffer from the PM4 packet and execute the Vulkan draw index command.
 
 ```cpp
 case OP_CUS_DRAW_INDEX:
@@ -698,62 +712,12 @@ case OP_CUS_DRAW_INDEX:
 	break;
 }
 ```
-
-
-
-
-
-
-
-# Non-Graphics Libraries
-
-I would like to provide a brief introduction to non-graphics libraries implementation, such as libkernel, video output and system services. We will not detail it, since we mainly focus on the libraried ralated to the graphics driver.
-
-## File Management
-
-In order to load the game resource correctly, we map the path from the relative path to the absolute path. For the path string beginning with "/app0" or "/app1", we map it to the directory where the `eboot.bin` is located. 
 ```cpp
-if (unMappedPath.find("/app0") != std::string::npos)
-{
-	retString.replace(0, sizeof("/app0"), app0Dir.c_str());
-}
-else if (unMappedPath.find("/app1") != std::string::npos)
-{
-	retString.replace(0, sizeof("/app1"), app0Dir.c_str());
-}
-```
-## MemoryManager
-
-PS4 has many memory protection options. For reasons of simplification, we classify them into three types: execute or read-only access, read-only access and read-only or read/write access. For CPU read protection or GPU read protection, we use the `PAGE_READONLY` protection flag. For CPU write protection option or GPU write protection option, we use `PAGE_READWRITE` protection flag. For CPU executable protection, we use the PAGE_EXECUTE_READ flag.
-
-```cpp
-uint32_t CLibKernelMemoryManager::GetProtectFlag(int prot)
-{
-	uint32_t protFalg = PAGE_NOACCESS;
-	if ((prot & SCE_KERNEL_PROT_CPU_READ) || (prot & SCE_KERNEL_PROT_GPU_READ)){ protFalg = PAGE_READONLY; }
-	if ((prot & SCE_KERNEL_PROT_CPU_WRITE) || (prot & SCE_KERNEL_PROT_GPU_WRITE)){ protFalg = PAGE_READWRITE; }
-	if (prot & SCE_KERNEL_PROT_CPU_EXEC){ protFalg = PAGE_EXECUTE_READ; }
-	return protFalg;
-}
-```
-## Kernel
-
-### Stack Smashing Protection
-
->Clang, GCC, and related compilers implement stack smashing protection (SSP) using StackGuard. The fundamental assumption behind the approach is that most stack buffer overflows occur by writing past the end of a function’s stack frame. In order to detect this case, a “canary value” is added to the stack before other values are declared. Before returning from the function, the stored canary value in the stack is checked. If it has been modified, a stack buffer overflow has occurred. A failure callback is invoked, which prints an error message and terminates the program. These additions are made by the compiler without your involvement. Compiler flags are used to control the degree that your program is checked. We assign a random value to __stack_chk_guard:
-
-```cpp
-static unsigned long long __stack_chk_guard = 0xdeadbeefa55a857;
-```
-```cpp
- { 0x7FBB8EC58F663355,"Pset___stack_chk_guard", &__stack_chk_guard },
+gRHICommandList.RHIDrawIndexedPrimitive(idxIter->second.get(), param->indexCount, 1, 0, 0, 0);
 ```
 
-winpthreads:
-memory manage:
-pad controller infoemation:
-user service:
-video output:
+rendering result in loading stage:
 
-
-
+<p align="center">
+    <img src="/resource/pset/image/PS4Emulator.png" width="85%" height="85%">
+</p>
