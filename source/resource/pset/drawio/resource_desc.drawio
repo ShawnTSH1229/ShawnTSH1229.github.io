@@ -1,0 +1,153 @@
+<mxfile host="Electron" modified="2024-07-12T13:10:31.616Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="YKoFy7dCTJeGqvH7QwBR" version="24.2.5" type="device">
+  <diagram name="Page-1" id="tUyGk4rivnvC5f5kRcrG">
+    <mxGraphModel dx="2074" dy="1205" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-32" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="380" width="430" height="710" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-1" value="Shader ISA" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="180" y="400" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-3" value="Const Buffer Slot" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="180" y="440" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-4" value="Const Buffer Slot" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="180" y="480" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-5" value="Fetch Shader Slot" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="180" y="520" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-6" value="Vertex Buffer Slot" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="180" y="560" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-7" value="Shader Binary Info" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="180" y="600" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-8" value="Const Buffer Desc GPU Address" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="690" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-9" value="Const Buffer Desc GPU Address" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="730" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-10" value="FetchShader GPU Address" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="770" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-11" value="VertexBuffer Desc GPU Address&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="180" y="810" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-12" value="Const Buffer Desc" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="180" y="900" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-13" value="Const Buffer Desc" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="180" y="940" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-14" value="Fetch Shader ISA" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="180" y="980" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-15" value="Vertex Buffer Desc" style="rounded=0;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="180" y="1020" width="130" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-17" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;flipH=1;labelPosition=right;verticalLabelPosition=middle;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="310" y="400" width="20" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-18" value="Shader Binary Code" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="340" y="505" width="130" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-19" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lQb-FWV39Z22ZrY2PBON-3" target="lQb-FWV39Z22ZrY2PBON-8">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="740" as="sourcePoint" />
+            <mxPoint x="440" y="690" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="140" y="460" />
+              <mxPoint x="140" y="710" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-21" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;flipH=1;labelPosition=right;verticalLabelPosition=middle;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="310" y="690" width="20" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-22" value="User Data Register" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="370" y="755" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-23" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;" edge="1" parent="1" source="lQb-FWV39Z22ZrY2PBON-4" target="lQb-FWV39Z22ZrY2PBON-9">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="180" y="500" as="sourcePoint" />
+            <mxPoint x="180" y="750" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="120" y="500" />
+              <mxPoint x="120" y="750" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-24" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="180" y="540" as="sourcePoint" />
+            <mxPoint x="180" y="790" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="150" y="540" />
+              <mxPoint x="150" y="790" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-25" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="180" y="585" as="sourcePoint" />
+            <mxPoint x="180" y="835" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="110" y="585" />
+              <mxPoint x="110" y="835" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-26" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lQb-FWV39Z22ZrY2PBON-8" target="lQb-FWV39Z22ZrY2PBON-12">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="390" y="740" as="sourcePoint" />
+            <mxPoint x="440" y="690" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="350" y="710" />
+              <mxPoint x="350" y="920" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-27" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="310" y="750" as="sourcePoint" />
+            <mxPoint x="310" y="960" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="370" y="750" />
+              <mxPoint x="370" y="960" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-28" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="310" y="785" as="sourcePoint" />
+            <mxPoint x="310" y="995" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="340" y="785" />
+              <mxPoint x="340" y="995" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-29" value="" style="edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="310" y="830" as="sourcePoint" />
+            <mxPoint x="310" y="1040" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="360" y="830" />
+              <mxPoint x="360" y="1040" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-30" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="160" y="900" width="20" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="lQb-FWV39Z22ZrY2PBON-31" value="GPU Memory" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="965" width="100" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
