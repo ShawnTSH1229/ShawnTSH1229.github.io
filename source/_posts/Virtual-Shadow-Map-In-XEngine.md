@@ -18,21 +18,21 @@ Virtual Shadow Maps (VSMs) is the new shadow mapping method used in Unreal Engin
 >
 >Conceptually, virtual shadow maps are just very **high-resolution** shadow maps. In their current implementation, they have a **virtual resolution** of 16k x 16k pixels. **Clipmaps** are used to increase resolution further for Directional Lights. To keep performance high at reasonable memory cost, VSMs split the >shadow map into tiles (or Pages) that are 128x128 each. Pages are allocated and rendered only as needed to shade **on-screen pixels** based on an analysis of the depth buffer. The pages are **cached** between frames unless they are invalidated by moving objects or light, which further improves performance.
 
-According to the Unreal Engine VSMs documentation, VSMs have four key features: virtual high-resolution texture, clipmaps, only shade on-screen pixels and page cache. We have implemented the four features listed above in the simplified virtual shadow map project. Here is the low-level architecture of our simplified VSMs:
+We have implemented the four features described in the Unreal Engine VSM documentation, virtual high-resolution texture, clipmaps, only shading on-screen pixels and page caching, in our simplified virtual shadow map project. Here is the low-level architecture of our simplified VSMs:
 
 <p align="center">
     <img src="/resource/vsm_project/image/low_level_architecture.png" width="70%" height="70%">
 </p>
 
-In XEngine's simplified virtual shadow map, each directional light has a clip map with 3 levels: clip map level 6, clip map level 7 and clip map level 8. In addition, the maximum clip map level consists of 8 x 8 tiles, with the next clip map level having twice the number of tiles as the previous clip map level. The total tile number is 1344 (32 x 32 + 16 x 16 + 8 x 8), which corresponds to 8K x 8K virtual texture size. Each tile have the same physical size with 256 x 256 pixels. The physical tile pool's size is 2K x 2K.
+In XEngine's simplified virtual shadow map, each directional light has a clip map with 3 levels: clip map level 6, clip map level 7 and clip map level 8. In addition, the maximum clip map level consists of 8 x 8 tiles, with the next clip map level having twice the number of tiles as the previous clip map level. The total tile number is 1344 (32 x 32 + 16 x 16 + 8 x 8),  corresponding 8K x 8K virtual texture size. Each tile has 256 x 256 pixels in physical size and the physical tile pool has 2K by 2K pixels in physical size.
 # Overview
-Note: To achieve the **highest possible performance**, it is recommended that combining the virtual shadow map with a **Nanite-like** technique which divides the mesh into clusters. Otherwise, **fine-grained tile splitting** could result in significant increases in the draw call and the mesh face number.
+Note: For achieving the highest possible **performance**, it is recommended that combining the virtual shadow map with a **Nanite-like** technique dividing the mesh into clusters. Otherwise, fine-grained tile splitting could lead to a significant increase in draw calls and mesh face numbers by drawing meshes across different tiles repeatedly. Nanite's spliting mesh into clusters makes the mesh size smaller, decreasing the probability that the drawing units, clusters or the whole mesh, cross more than one tile.   
 
 <p align="center">
     <img src="/resource/vsm_project/image/renderdoc.png" width="64%" height="64%">
 </p>
 
-Simplified VSMs classify the tiles into different states based on the scene depth and the mesh bound box. It contains four tile states: shaded, not visible, cache miss and newly added tile state. VSMs performs different action for each tile with its tile state, such as update the physical tile content, allocate or remove the tile in the physical tile pool. Next, cull and build the mesh draw command for those tiles that need to be updated in the current frame. Finally, dispatch a set of indirect draw commands and compute the shadow mask using the shadow depth map rendered by indirect draw:
+Simplified VSMs classify the tiles into different states, including shaded, not visible, cache missing and newly added, based on the scene depth and the mesh bound box. For each tile, different actions are performed based on its state, such as updating the physical tile content, allocating or removing the tile. After that, cull and build the mesh draw command for those tiles needed to be updated in the current frame. Finally, dispatch a set of indirect draw commands and compute the shadow mask using the shadow depth map rendered by indirect draw:
 
 <p align="center">
     <img src="/resource/vsm_project/image/pass_overview.png" width="64%" height="64%">
@@ -42,13 +42,13 @@ Simplified VSMs classify the tiles into different states based on the scene dept
 
 ## Mark Tiles Used
 
-Only the tiles that affect objects in the camera view are processed by VSMs. In order to achieve this goal, VSMs analyze the scene depth buffer by convert the pixels from camera projection space to shadow view space to find which tile this pixel corresponds to. Moreover, VSMs calculate the clip map level this pixel belongs to based on its distance from world space to the camera. As shown in the following image, the green blocks are marked as used tiles in VSMs, while the red blocks are not used.
+Only are the tiles contaning the objects recieving the shadow in the camera view space processed by the simplified virtual shadow map. In order to achieve this goal, VSMs analyze the scene depth buffer by convert the pixels from camera projection space to shadow view space to find which tile this pixel corresponds to. Moreover, VSMs calculate the clip map level this pixel belongs to based on its distance from the world space location to the camera's. As shown in the following image, the green blocks are marked as active tiles in VSMs, while the red blocks are not active.
 
 <p align="center">
     <img src="/resource/vsm_project/image/vsm_tile_mark_drawio.png" width="50%" height="50%">
 </p>
 
-Simplified VSMs have 3 clip map levels. The ranges of each mip level are 2^(6 + 1) ,2^(7 + 1)  and 2^(8 + 1). The first level is 6, which means that the pixels distance to the camera ranging from 0 to 2^6 are belong to this level. Based on the mip level, shadow space UV, and mip size, we can determine which tile this pixel belongs to.
+Simplified VSMs have 3 clip map levels, whose ranges are 2^(6 + 1) ,2^(7 + 1) and 2^(8 + 1). The first level is 6, meaning that pixels whose distance to the camera ranges from 0 to 2^6 are belong to this level. Based on the mip level, shadow space UV, and mip size, we can determine which tile this pixel belongs to.
 
 ```cpp
 float Distance = length(WorldCameraPosition - WorldPosition.xyz);
@@ -69,7 +69,7 @@ Here is a visualization of the mip level for the scene. The Mip Levels 6 / 7 / 8
 
 ## Mark Cache Miss Tiles
 
-VSMs only update the tiles that have changed compared to previous frame. This reduces the number of draw calls since we can reuse the previous frame data in the cached virtual shadow map texture. To find all of the tiles that changed in this frame, simplified VSMs project the bound boxes of the dynamic objects into the shadow view space. Following that, the VSM iterates and marks all tiles within these bound boxes projected range. The VSMs only mark tiles as cache misses for **those tiles that were rendered in this frame**. All of the mip levels covered are conservatively marked as cache miss. In the following gif image, we can see that the cache missed tile with yellow color is updated every frame:
+Update only the tiles having changed compared to the previous frame, which reduces the number of draw calls by reusing the previous frame data cached in the virtual shadow map texture. For finding all of the tiles that changed in the current frame, simplified VSMs project the bound boxes of the dynamic objects receiving shadow into the shadow view space. Following that, the tiles rendered in the current frame as well as within these bound boxes' projected area are iterated and marked as cache missing. All tiles' mip levels covered are conservatively marked as cache misses. The following gif image shows the cache missing tile with yellow color updated every frame:
 
 <p align="center">
     <img src="/resource/vsm_project/gif/tile_cache_miss.gif" width="80%" height="80%">
@@ -77,13 +77,14 @@ VSMs only update the tiles that have changed compared to previous frame. This re
 
 # Update Tile Action
 
-In the tile action update pass, VSMs compare the current tile state with the previous frame's tile state. A ping-pong buffer is used to store the previous's tile state buffer and tile table buffer. The tile table buffer stores the index to the physical tile texture.
+During the tile action updating pass, VSMs firstly compare the current state with the last frame's state using a ping-pong buffer storing the previous tile table buffer, containing the indices to the physical tile texture, and the previous tile state buffer.
 
 <p align="center">
     <img src="/resource/vsm_project/image/update_tile_action.png" width="50%" height="50%">
 </p>
 
-Newly added tiles in this frame will allocate a new physical tile and update the shadow rendering. For cached tiles, we only update the tile shadow rendering. There is no need to allocate an extra physical tile for the cached tile. We reuse the cached tile by assign it with the index copyed from the corresponding position in the previoues tile table.
+Current frame's newly added tiles will allocate a new physical tile and update the shadow rendering content. Cached tiles, reused by being assigned with the index copied from the corresponding position in the last frame's tile table, only update the shadow rendering, which is no need to allocate an extra physical tile.
+
 ```cpp
     bool bTileUsed = (TileState == TILE_STATE_USED);
     bool bPreTileUsed = (PreTileState == TILE_STATE_USED);
@@ -121,13 +122,14 @@ Newly added tiles in this frame will allocate a new physical tile and update the
 ```
 # Physical Tile Management
 
-VSMs maintain a list of available physical tiles. An extra counter buffer records the free list header node. The physical tile manager allocates a free tile from the free tile list when the tile action equals TILE_ACTION_NEED_ALLOCATE and assigns the tile index to the corresponding position of the current frame virtual tile table when the tile action equals TILE_ACTION_NEED_ALLOCATE. The physical tile manager will obtain the released tile index from the previous frame tile table and push it to the back of the free tile list if the tile action is TILE_ACTION_NEED_REMOVE.
+The physical tile manager, maintaining a list of available physical tiles and an extra counter buffer recording the available list header node, allocates a free tile from the free tile list when the tile action equals `TILE_ACTION_NEED_ALLOCATE` and assigns the tile index to the corresponding position of the current frame virtual tile table when the tile action equals `TILE_ACTION_NEED_ALLOCATE`. What's more, the physical tile manager will obtain the released tile index from the previous frame tile table and push it to the back of the free tile list if the tile action is `TILE_ACTION_NEED_REMOVE`.
 
 <p align="center">
     <img src="/resource/vsm_project/image/physical_tile_manage.png" width="80%" height="80%">
 </p>
 
-We move the counter forward or backward by InterlockedAdd instruction. The tile realse and tile allocate action are performed in separate compute pass. VSMs in UE5 maintain a LRU list in the physical tile manager. For simplicity, we release the tile buffer immediately after the tiles are marked as TILE_ACTION_NEED_REMOVE.
+The tile release and allocate action, performed in seperate compute passes, moves the counter forward or backward by the InterlockedAdd instruction. We release the tile buffer immediately for simplicity after the tiles are marked as `TILE_ACTION_NEED_REMOVE`, while UE5's VSMs maintains a LRU list in the physical tile manager removing the tile when requested by the new tile actually .
+
 
 ```cpp
     if(VirtualShadowMapAction & TILE_ACTION_NEED_ALLOCATE)
@@ -153,8 +155,7 @@ We move the counter forward or backward by InterlockedAdd instruction. The tile 
         }
     }
 ```
-When rotating the camera, we can see that the free tiles (red blocks in the top-right corner) are changed:
-
+Rotating the camera, the free tiles, red blocks in the top-right corner, are changed, as shown in the following gif:
 <p align="center">
     <img src="/resource/vsm_project/gif/physical_tile_allocation.gif" width="64%" height="64%">
 </p>
@@ -168,7 +169,7 @@ VSMs build the command on the GPU and render the shadow map by indirect draw com
     <img src="/resource/vsm_project/image/indirect_cmd_layout.png" width="50%" height="50%">
 </p>
 
-After that, we allocate the command data on the application side. It contains the GPU address of the buffer, information about the vertex buffer and index buffer, as well as information about the object mesh. In the final step, initialize the scene command buffer with the data allocated above and create an empty culled command buffer with the same size as the scene command buffer. The culled command buffer is a collection of commands used in shadow map rendering after GPU culling.
+After that, on the application side, the command data, containing the GPU address of the buffer, information about the vertex/index buffer and information associated with the object mesh, is allocated. In the final step, initialize the scene command buffer with the data allocated above and create an empty culled command buffer, a collection of commands used in shadow map rendering after GPU culling, with the same size as the scene command buffer. 
 
 ```cpp
 std::vector<XRHICommandData> RHICmdData;
@@ -196,7 +197,7 @@ void* DataPtrret = RHIGetCommandDataPtr(RHICmdData, OutCmdDataSize);
 ```
 ## Build Indirect Shadow Command
 
-For each tile, we dispatch 50 threads to process the mesh batch. Each mesh batch has 1 / 50 mesh draw commands. Simplified VSMs cull the mesh draw command from the mesh bounding box. We project the box into the shadow view space, and push the command to the output command queue by InterLockedAdd when the mesh is not culled by the tile.
+For each tile, we dispatch 50 threads to process the mesh batch, each of whom has 1 / 50 of the total mesh draw commands. Simplified VSMs cull the mesh draw commands based on the shadow space area of the mesh bound box after projection. When the meshes are not culled by the tile frustum, its corresponding commands are pushed to the output command queue by InterLockedAdd.
 
 <p align="center">
     <img src="/resource/vsm_project/image/build_shadow_command.png" width="75%" height="75%">
@@ -204,15 +205,14 @@ For each tile, we dispatch 50 threads to process the mesh batch. Each mesh batch
 
 ## GPU "Pointer"
 
-It is necessary to create a bridge between the indirect draw command and the virtual tile table in order to obtain tile information. UE5's VSMs use InstanceID to index the virtual tile table. The solution requires recording an extra InstanceOffset variable for each mesh, since the StartInstanceLocation cannot be obtained from the vertex shader if the shading language is beyond SM 6.8. In Simplified VSMs, we use **"GPU Pointer"** to point the GPU address of the tile information buffer.
+Creating a bridge between the indirect draw command and the virtual shadow map is critical for obtaining the tile information. UE5 VSM's solution, using InstanceID to index the virtual tile table, requires recording an extra InstanceOffset variable for each mesh, since the StartInstanceLocation cannot be obtained from the vertex shader if the shading language is beyond SM 6.8. In Simplified VSMs, we use **"GPU Pointer"** to point the GPU address of the tile information buffer.
 
 <p align="center">
     <img src="/resource/vsm_project/image/gpu_pointer.png" width="75%" height="75%">
 </p>
 
-For each tile, simplified VSMs generate information including a view-proj matrix, mip level, and tile indexes. We can calculate the GPU address of each tile with the tile index and the base GPU address recorded on the application side.
+Simplified VSM generates the information including a view-proj matrix, mip leve and tile indexes on the GPU side for each tile. The GPU address of each tile with the tile is calculated with the tile index and the base GPU address that recorded on the application side. Since the GPU pointer is 64 bits and HLSL doesn't support 64 bits integer addition, we implement a custom 64 bit addition for the GPU pointer:
 
-Another problem is that the GPU pointer is 64 bits in size, and HLSL does not support additions of 64 bits. Therefore, it is necessary to implement a custom 64 bit addition for the GPU pointer:
 ```cpp
 struct UINT64
 {
@@ -233,7 +233,7 @@ UINT64 UINT64_ADD(UINT64 InValue , uint InAdd)
     return Ret;
 }
 ```
-A tile's GPU address is simply the sum of the tile offset and the base address.
+The tile's GPU address is simply the addition of the tile offset and the base address.
 ```cpp
 uint2 TileIndexMin = uint2( UVMin * MipLevelSize[MipLevel]);
 uint2 TileIndexMax = uint2( UVMax * MipLevelSize[MipLevel]);
@@ -253,14 +253,14 @@ if(TileIndexMin.x <= MipTileIndexXY.x && TileIndexMin.y <= MipTileIndexXY.y && T
 ```
 
 # Shadow Map Rendering
-After all pre-requirements have been met, shadow map rendering is an easy task-just clear the physical tiles that need to be updated and dispatch an indirect draw pass.
+All pre-requirements having been met, shadow map rendering is easy to implement by dispatching an indirect draw pass followed by clearing the physical tiles requiring updating.
 
 ```cpp
 RHICmdList.RHIExecuteIndirect(VirtualShadowMapResource.RHIShadowCommandSignature.get(), RenderGeos.size() * 16,
 	VirtualShadowMapResource.VirtualShadowMapCommnadBufferCulled.GetBuffer().get(), 0,
 	VirtualShadowMapResource.VirtualShadowMapCommnadCounter.GetBuffer().get(), 0);
 ```
-By calculating the MIP level based on the world position and calculating the virtual table index based on the GPU pointer, we can determine destination pixel writen position.
+The destination pixel written position is determined by calculating the MIP level based on the world position and calculating the virtual table index based on the GPU pointer.
 
 ```cpp
 uint TableIndex = MipLevelOffset[MipLevel] + VirtualTableIndexY * MipLevelSize[MipLevel] + VirtualTableIndexX;
