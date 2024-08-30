@@ -6,6 +6,11 @@ date: 2024-05-01 18:52:12
 
 
 
+Visual                         Performance
+<---------------------------------------->
+Offline Rendering         Driver & Hardware
+
+
 --------------------------------
 Offline Rendering
 
@@ -21,3 +26,7 @@ RealTime Rendering Optimization Methodology
 RHI Level: DirectX12 & Vulkan
 Driver Level
 Hardware Level
+
+---------------Foundation--------------
+Math
+Computer Science
