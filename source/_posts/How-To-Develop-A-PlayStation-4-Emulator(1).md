@@ -2,7 +2,7 @@
 title: How To Develop A PlayStation 4 Emulator(1)
 date: 2024-07-05 23:15:36
 tags:
-index_img: /resource/pset/image/PS4Emulator.png
+index_img: /resource/pset/image/self.png
 ---
 # Overview
 
