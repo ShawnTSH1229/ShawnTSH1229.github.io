@@ -7,7 +7,11 @@ tags:
 ---
 
 # Introduction
+Half Res
+
 # [ReSTIR]Spatiotemporal Reservoir Resampling
+Half Res
+
 ## Theory
 
 There are two basic problems in the Monte Carlo integration of rendering equation to reduce the errors and improve the sampling efficiency:
@@ -21,47 +25,37 @@ It's really hard to take a sample from the PDF that is proportional to {% katex 
 ### Sample Importance Resampling (SIR)
 
 #### SIR Workflow
-As drawing samples from the target PDF[{% katex %}p_{target}(x){% endkatex %}] proportional to {% katex %}L(w_i)f_r(w_i,w_o)cos(\theta_i){% endkatex %} is hard, SIR takes samples from a more simple PDF called proposal PDF[{% katex %}p_{proposal}(x){% endkatex %}]. Here is the basic workflow of the SIR:
+Since drawing samples from the target PDF {% katex %}p_{target}(x){% endkatex %} proportional to {% katex %}L(w_i)f_r(w_i,w_o)cos(\theta_i){% endkatex %} is hard, SIR takes samples from a more simple PDF called proposal PDF {% katex %}p_{proposal}(x){% endkatex %}. Here is the basic workflow of the SIR:
 
-1.Take M samples from proposal PDF [{% katex %}p_{proposal}(x){% endkatex %}], named as [{% katex %}X = x_1, x_2, ..., x_m{% endkatex %}]. 
+1.Take M samples from proposal PDF {% katex %}p_{proposal}(x){% endkatex %}, named as {% katex %}X = x_1, x_2, ..., x_m{% endkatex %}. 
 In our implementation, we use uniform sample hemisphere sampling to generate the samples, which means:
-{% katex %}p_{proposal}(x) = \frac{1}{2\pi}{% endkatex %}
-
+{% katex %}p_{proposal}(x) = \frac{1}{2\pi}{% endkatex %}<br><br>
 2.For each sample taken from {% katex %}X{% endkatex %}, assign a weight for the sample, which is: 
-{% katex %}w(x) = \frac{p_{target}(x)}{p_{proposal}(x)}{% endkatex %}. 
+{% katex %}w(x) = \frac{p_{target}(x)}{p_{proposal}(x)}{% endkatex %}. <br><br>
 And 
-{% katex %}p_{target}(x) = luminance(L(w_i)f_r(w_i,w_o)cos(\theta_i)) {%endkatex %}
-​
+{% katex %}p_{target}(x) = luminance(L(w_i)) {%endkatex %}<br><br>
 3.Next, draw a sample from {% katex %}X{% endkatex %}, also named as target sample in this post, from this proposal sample set of M. The probability of each sample being picked is proportional to its weight, which means:
-
-{% katex %} p(x_z|X) = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)} {% endkatex %}. 
-
+{% katex %} p(x_z|X) = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)} {% endkatex %}<br><br>
 The PDF of drawing a sample from the whole sample space is called SIR PDF. 
-
 {% katex %}p_{sir}(x) = \frac{p_{target}(x)}{\frac{1}{M}\Sigma_{i=1}^{M}w(x_{i})}{% endkatex %}
-
 #### [SIR PDF Derivation](https://www.zhihu.com/question/572528081/answer/3540624011)
-Suppose the event {% katex %}Ez{% endkatex %} is sample {% katex %}z{% endkatex %} drawn from the sample set {% katex %}X{% endkatex %} and the event {% katex %}EX{% endkatex %} is sample {% katex %}z{% endkatex %} existing in the sample set {% katex %}X{% endkatex %}.
-{% katex %}p(Ez | EX) = \frac{p(Ez\cap EX)}{p(EX)}{% endkatex %}
+Suppose the event {% katex %}Ez{% endkatex %} is sample {% katex %}z{% endkatex %} drawn from the sample set {% katex %}X{% endkatex %} and the event {% katex %}EX{% endkatex %} is sample {% katex %}z{% endkatex %} existing in the sample set {% katex %}X{% endkatex %}.<br><br>
+{% katex %}p(Ez | EX) = \frac{p(Ez\cap EX)}{p(EX)}{% endkatex %}<br><br>
 Where 
-{% katex %}p(Ez | EX) = p(x_z|X) = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)}{% endkatex %}<br>
+{% katex %}p(Ez | EX) = p(x_z|X) = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)}{% endkatex %}<br><br>
 And the SIR PDF is:
-{% katex %} p_{sir}(x) = p(Ez\cap EX) {% endkatex %}<br>
-{% katex %}p(Ez\cap EX) = p(Ez | EX) p(EX){% endkatex %}
+{% katex %} p_{sir}(x) = p(Ez\cap EX) {% endkatex %}<br><br>
+{% katex %}p(Ez\cap EX) = p(Ez | EX) p(EX){% endkatex %}<br><br>
 Draw a sample from the whole sample space, the probability of this sample being equal to {% katex %}z{% endkatex %} is {% katex %}p_{proposal}(z){% endkatex %}.  The probability that sample {% katex %}z{% endkatex %} exists in sample set {% katex %}X{% endkatex %} is:
-{% katex %}p(EX) = p_{proposal}(z) + ...... + p_{proposal}(z) = p_{proposal}(z)*M{% endkatex %}<br>
-
+{% katex %}p(EX) = p_{proposal}(z) + ...... + p_{proposal}(z) = p_{proposal}(z)*M{% endkatex %}<br><br>
 Finally
-{% katex %} p_{sir}(z) = p(Ez | EX) p(EX) {% endkatex %}<br>
-{% katex %} = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)} p(EX) {% endkatex %}<br>
-{% katex %} = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)} p_{proposal}(z)*M {% endkatex %}<br>
-{% katex %} = \frac{p_{target}(z)}{\Sigma_{i=0}^{M}w(x_i)} *M {% endkatex %}<br>
-{% katex %} = \frac{p_{target}(z)}{\frac{1}{M}\Sigma_{i=0}^{M}w(x_i)} {% endkatex %}<br>
-
+{% katex %} p_{sir}(z) = p(Ez | EX) p(EX) {% endkatex %}<br><br>
+{% katex %} = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)} p(EX) {% endkatex %}<br><br>
+{% katex %} = \frac{w(x_z)}{\Sigma_{i=0}^{M}w(x_i)} p_{proposal}(z)*M {% endkatex %}<br><br>
+{% katex %} = \frac{p_{target}(z)}{\Sigma_{i=0}^{M}w(x_i)} *M {% endkatex %}<br><br>
+{% katex %} = \frac{p_{target}(z)}{\frac{1}{M}\Sigma_{i=0}^{M}w(x_i)} {% endkatex %}<br><br>
 When {% katex %}M = 1{% endkatex %},
-
-{% katex %} p_{sir}(x) = \frac{p_{target}(x)}{w(x)} = p_{proposal}(z){% endkatex %}<br>
-
+{% katex %} p_{sir}(x) = \frac{p_{target}(x)}{w(x)} = p_{proposal}(z){% endkatex %}<br><br>
 ### Resampled Importance Sampling (RIS)
 
 RIS uses importance sampling to draw samples from SIR. It should be noted that the SIR, similar to the inverse mapping, is a sampling distribution mapping instead of importance sampling !!! The RIS workflow is the same as Importance sampling:
@@ -70,12 +64,12 @@ RIS uses importance sampling to draw samples from SIR. It should be noted that t
 2.Draw N samples from M samples generated by SIR using importance sampling from the SIR distribution.
 
 The integration formula is shown below, which is the same as **importance sampling**:
-{% katex %}I_{RIS}^{N,M}=\frac{1}{N}\Sigma_{i=1}^{N}\frac{f(x_{i})}{p_{sir}(x_{i})}{% endkatex %}
+{% katex %}I_{RIS}^{N,M}=\frac{1}{N}\Sigma_{i=1}^{N}\frac{f(x_{i})}{p_{sir}(x_{i})}{% endkatex %}<br><br>
 Replace the SIR PDF with the formula derived before:
-{% katex %}I_{RIS}^{N,M}=\frac{1}{N}\Sigma_{i=1}^{N}\frac{f(x_{i})}{p_{sir}(x_{i})}{% endkatex %}<br>
-{% katex %}=\frac{1}{N}\Sigma_{i=1}^{N}(\frac{f(x_{i})}{p_{target}(x)}(\frac{1}{M}\Sigma_{p=0}^{M}w(x_{ip}))){% endkatex %}
+{% katex %}I_{RIS}^{N,M}=\frac{1}{N}\Sigma_{i=1}^{N}\frac{f(x_{i})}{p_{sir}(x_{i})}{% endkatex %}<br><br>
+{% katex %}=\frac{1}{N}\Sigma_{i=1}^{N}(\frac{f(x_{i})}{p_{target}(x)}(\frac{1}{M}\Sigma_{p=0}^{M}w(x_{ip}))){% endkatex %}<br><br>
 When N = 1, it becomes:
-{% katex %}I_{RIS}^{1,M}=\frac{f(x_{i})}{p_{target}(x)}(\frac{1}{M}\Sigma_{p=0}^{M}w(x_{ip})){% endkatex %}
+{% katex %}I_{RIS}^{1,M}=\frac{f(x_{i})}{p_{target}(x)}(\frac{1}{M}\Sigma_{p=0}^{M}w(x_{ip})){% endkatex %}<br><br>
 ,**Which is used in ReSTIR**.
 
 ###  Weighted Reservoir Sampling(WRS)
@@ -89,7 +83,7 @@ RIS requires us to pick a sample (N = 1) from M proposal samples generated by SI
 
 Assume we have n samples {% katex %}x_i\in[1,n]{% endkatex %}. Each sample weighs {% katex %}w(x_i){% endkatex %} and its probability is {% katex %}p(x_i){% endkatex %}. In ReSTIR, WRS **temporally** iterates the samples in the sample stream, picking and storing a sample randomly with the probability {% katex %}p(x_i){% endkatex %}.
 
-{% katex %}p(x_i)=\frac{w(x_i)}{\Sigma_{j=1}^{n}w(x_j)}{% endkatex %}
+{% katex %}p(x_i)=\frac{w(x_i)}{\Sigma_{j=1}^{n}w(x_j)}{% endkatex %}<br><br>
 
 According to the above formula, WRS stores two variables:
 Current picked sample({% katex %}w(x_i){% endkatex %})
@@ -109,19 +103,273 @@ For an incoming sample in iteration k, we perform the following steps:
 
 #### Prof of Picking Probability
 
-Assuming K samples have been processed, we want to prove that the probability of picking sample k-1 is satisfied with the probability formula.
+Assuming K samples have been processed, we want to prove that the probability of picking sample k-1 is euqal to the probability formula.
 
 If sample K is ignored, the probability of sample K-1 being picked is {% katex %}p_1=\frac{w(x_{k-1})}{\Sigma_{i=1}^{k-1}w(x_i)}{% endkatex %}.
 If sample K is picked, the probability of sample K being picked is p1, which means the probability of K-1 being ignored is {% katex %}p_2=\frac{w(x_{k})}{\Sigma_{i=1}^{k}w(x_i)}{% endkatex %}.
 
 The probability of sample K-1 being picked when we process sample K is:
-{% katex %}p(x_{k-1}) = p_1 * (1-p_2)= \frac{w(x_{k-1})}{\Sigma_{i=1}^{k-1}w(x_i)} * (1-\frac{w(x_{k})}{\Sigma_{i=1}^{k}w(x_i)}) {% endkatex %}<br>
-{% katex %}= \frac{w(x_{k-1})}{\Sigma_{i=1}^{k-1}w(x_i)} * \frac{\Sigma_{i=1}^{k-1}w(x_i)}{\Sigma_{i=1}^{k}w(x_i)} {% endkatex %}<br>
-{% katex %}= \frac{w(x_{k-1})}{\Sigma_{i=1}^{k}w(x_i)} {% endkatex %}<br>
+{% katex %}p(x_{k-1}) = p_1 * (1-p_2)= \frac{w(x_{k-1})}{\Sigma_{i=1}^{k-1}w(x_i)} * (1-\frac{w(x_{k})}{\Sigma_{i=1}^{k}w(x_i)}) {% endkatex %}<br><br>
+{% katex %}= \frac{w(x_{k-1})}{\Sigma_{i=1}^{k-1}w(x_i)} * \frac{\Sigma_{i=1}^{k-1}w(x_i)}{\Sigma_{i=1}^{k}w(x_i)} {% endkatex %}<br><br>
+{% katex %}= \frac{w(x_{k-1})}{\Sigma_{i=1}^{k}w(x_i)} {% endkatex %}<br><br>
 
 ## Implementation Detail
 ### Initial Sample
+
+Our implementation is based on ReSTIR GI (SIGG 2022) and Unreal Engine, which provides a detailed description. 
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/algo_init.png" width="60%" height="60%">
+</p>
+
+>The first phase of our algorithm generates a new sample point for each visible point. Our implementation takes as input a G-buffer with the visible point’s position and surface normal in each pixel, though it could also easily be used with ray-traced primary visibiity
+
+>For each pixel q with corresponding visible point xv, we sample a direction ωi using the source PDF pq(ωi) and trace a ray to obtain the sample point xs. The source PDF may be a uniform distribution, a cosine-weighted distribution, or a distribution based on the BSDF at the visible point.
+
+Spatial-temporal blue noise (STBN) is useful for providing per-pixel random values to make noise patterns in renderings. It could generate a uniform random sequence in any direction, whether spatial or temporal. We use STBN to generate random rays due to its excellent properties.
+
+```cpp
+float2 E = GetBlueNoiseVector2(stbn_vec2_tex3d, reservoir_coord, g_current_frame_index);
+float4 hemi_sphere_sample = UniformSampleHemisphere(E);
+
+float3x3 tangent_basis = GetTangentBasis(world_normal);
+
+float3 local_ray_direction = hemi_sphere_sample.xyz;
+float3 world_ray_direction = normalize(mul(local_ray_direction, tangent_basis));
+```
+
+we use uniform sample hemisphere sampling to generate the samples, which means the proposal pdf is {% katex %}\frac{1}{2\pi}{% endkatex %}
+
+To retrieve mesh data during ray tracing, we use bindless ray tracing to obtain hit point surface information. A mesh instance ID assigned during top-level acceleration structure construction.
+
+```cpp
+D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc = instanceDescs[i];
+......
+instanceDesc.InstanceID = i;
+......
+```
+Store the offsets of GPU resources, including index buffer offset, vertex attributes, material index and so on, for each mesh in a global byteaddress buffer.
+
+```cpp
+std::vector<RayTraceMeshInfo>   meshInfoData(model.m_Header.meshCount);
+for (UINT i = 0; i < model.m_Header.meshCount; ++i)
+{
+    meshInfoData[i].m_indexOffsetBytes = model.m_pMesh[i].indexDataByteOffset;
+    meshInfoData[i].m_uvAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_texcoord0].offset;
+    meshInfoData[i].m_normalAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_normal].offset;
+    meshInfoData[i].m_positionAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_position].offset;
+    meshInfoData[i].m_tangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_tangent].offset;
+    meshInfoData[i].m_bitangentAttributeOffsetBytes = model.m_pMesh[i].vertexDataByteOffset + model.m_pMesh[i].attrib[ModelH3D::attrib_bitangent].offset;
+    meshInfoData[i].m_attributeStrideBytes = model.m_pMesh[i].vertexStride;
+    meshInfoData[i].m_materialInstanceId = model.m_pMesh[i].materialIndex;
+    ASSERT(meshInfoData[i].m_materialInstanceId < 27);
+}
+```
+Retieval the surface attributes, including texture UV, vertex normal and so on, from the GPU resource based on the offset information stored on a prepared GPU buffer described above that is indexed by Instance ID.    
+
+```cpp
+        const float3 bary = float3(1.0 - attributes.x - attributes.y, attributes.x, attributes.y);
+
+        RayTraceMeshInfo info = rt_scene_mesh_gpu_data[InstanceID()];
+        const uint3 ii = Load3x16BitIndices(info.m_indexOffsetBytes + PrimitiveIndex() * 3 * 2);
+
+        const float2 uv0 = asfloat(scene_vtx_buffer.Load2((info.m_uvAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes)));
+        const float2 uv1 = asfloat(scene_vtx_buffer.Load2((info.m_uvAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes)));
+        const float2 uv2 = asfloat(scene_vtx_buffer.Load2((info.m_uvAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes)));
+
+        const float3 normal0 = asfloat(scene_vtx_buffer.Load3(info.m_normalAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
+        const float3 normal1 = asfloat(scene_vtx_buffer.Load3(info.m_normalAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes));
+        const float3 normal2 = asfloat(scene_vtx_buffer.Load3(info.m_normalAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
+```
+
+Then sample the diffuse texture based on the retrieved UV calculated before and return those information to the RayGen shader.
+
+```cpp
+float3 vsNormal = normalize(normal0 * bary.x + normal1 * bary.y + normal2 * bary.z);
+
+float2 uv = bary.x * uv0 + bary.y * uv1 + bary.z * uv2;
+Texture2D<float4> diffTex = bindless_texs[info.m_materialInstanceId * 2 + 0];
+const float3 diffuseColor = diffTex.SampleLevel(gSamLinearWarp, uv, 0).rgb;
+
+float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+
+payload.world_normal = vsNormal;
+payload.world_position = worldPosition;
+payload.albedo = diffuseColor;
+payload.hit_t = RayTCurrent();
+```
+
+Here is the structure of the sample in the ReSTIR GI paper.
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/sample_structure.png" width="75%" height="75%">
+</p>
+
+Our implementation is based on Unreal, which is different from the original paper:
+1.There is no need to store the position and the normal of the visible point since they could be obtained from the GBuffer.
+2.We store the ray direction and hit distance rather than hit position which could be calculated from the direction and hit distance.
+3.We use STBN to store the random value, which means there is no need to store it.
+
+```cpp
+struct SSample
+{
+    float3 ray_direction;
+    float3 radiance;
+    float hit_distance;
+    float3 hit_normal;
+    float pdf;
+};
+```
+Then, trace a shadow ray to determine whether the sample point is visible. If the sample point is visible, calculate the radiance.
+
+```cpp
+SInitialSamplingRayPayLoad shadow_payLoad = (SInitialSamplingRayPayLoad)0;
+TraceRay(rtScene, RAY_FLAG_FORCE_OPAQUE, RAY_TRACING_MASK_OPAQUE, RT_SHADOW_SHADER_INDEX, 1,0, shadow_ray, shadow_payLoad);
+if(shadow_payLoad.hit_t <= 0.0)
+{
+    float NoL = saturate(dot(light_direction.xyz, payLoad.world_normal));
+    radiance = NoL * SUN_INTENSITY * payLoad.albedo * (1.0 / PI);
+}
+```
+
+>After the fresh initial sample is taken, spatial and temporal resapling is applied. The target function {% katex %}p_{target}() = L_i(x_v,w_i) f(w_o,w_i)cos\theta = L_o(x_s,−w_i) f(wo,wi)cos\theta {% endkatex %} includes the effect of the BSDF and cosine factor at the visible point, though we have also found that the simple target function {% katex %}p_{target}() = L_i(x_v,w_i) {% endkatex %} **works well**. While it is a suboptimal target function for a single pixel, we have found that it is helpful for spatial resampling in that it preserves samples that may be effective at pixels other than the one that initially generated it.
+
+The original paper ignore the BSDF and cos factor when calculate the tatget PDF. Since it "works well", we ignore those factors as well and use the luminance of the radiance as the target PDF.
+
+```cpp
+float target_pdf = Luminance(radiance);
+float w = target_pdf / initial_sample.pdf;
+```
+After that, update the reservoir information. Since we only have one sample obtained from the ray tracing, meaning {% katex %} w_{new} / w_{sum} = 1{% endkatex %}, current sample will be stored in the reservoir absolutely. Below is the reservoir structure.
+
+```cpp
+struct SReservoir
+{
+    SSample m_sample;
+    float weight_sum;
+    float M; 
+    float inverse_sir_pdf;
+};
+```
+It contains 4 members:
+1.m_sample: Reservoir sample picked up by WRS
+2.weight_sum: the weight sum of the proposal samples being processed. (used for WRS)
+3.M: the number of proposal samples.
+4.inverse_sir_pdf: the inverse of the SIR PDF, which will be used for spatial sample reuse.
+
+The SIR PDF derivation is in the SIR part above:
+```cpp
+reservoir.inverse_sir_pdf = reservoir.weight_sum / (max(reservoir.M * reservoir.m_sample.pdf, 0.00001f));
+```
+#### Result
+Initial Sample Ray Direction:
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_dir.png" width="75%" height="75%">
+</p>
+
+Initial Sample Ray Hit Distance:
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_hit_dist.png" width="75%" height="75%">
+</p>
+
+Initial Sample Ray Hit Normal:
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_normal.png" width="75%" height="75%">
+</p>
+
+Initial Sample Ray Hit Radiance:
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_radiance.png" width="75%" height="75%">
+</p>
+
+Reservoir(Weight, M, Inverse SIR PDF):
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_weights.png" width="75%" height="75%">
+</p>
+
+
+
 ### Temporal Resampling
+>After initial samples are generated, temporal resampling is applied. In this stage, for each pixel, we read the sample from the initial sample buffer, and use it to randomly update temporal reservoir,computing the RIS weight.
+
+At first, reproject the sample into the previous frame.
+
+```cpp
+float4 pre_view_pos = mul(PreViewProjMatrix,float4(world_position, 1.0));
+float2 pre_view_screen_pos = (float2(pre_view_pos.xy / pre_view_pos.w) * 0.5 + float2(0.5,0.5));
+pre_view_screen_pos.y = (1.0 - pre_view_screen_pos.y);
+uint2  pre_view_texture_pos = pre_view_screen_pos * g_restir_texturesize;
+```
+Then, check whether the sample is nearby the current sample based on world normal and world position.
+
+```cpp
+float noise = GetBlueNoiseScalar(stbn_scalar_tex, reservoir_coord, g_current_frame_index);
+uint2 history_reservoir_sample = clamp(pre_view_texture_pos, uint2(0,0), int2(g_restir_texturesize) - int2(1,1));
+float3 history_world_position = history_downsampled_world_pos[history_reservoir_sample].xyz;
+float3 history_world_normal = history_downsampled_world_normal[history_reservoir_sample].xyz;
+            
+bool is_history_nearby = (distance(history_world_position, world_position) < 10.0f) && (abs(dot(history_world_normal,world_normal) > 0.25));
+```
+The original paper clearly describes what we should do.
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/temp_reuse.png" width="75%" height="75%">
+</p>
+
+**4th line**: Assign a weight to the sample, as described in the SIR part above (step 2).
+{% katex %}w(x) = \frac{p_{target}(x)}{p_{proposal}(x)}{% endkatex %}. <br><br>
+
+The initial sample pass only generates one sample, which means {% katex %}w_{sum}=w_{new}{% endkatex %}. It is already stored in the InitialSampleBuffer (**2nd line**).
+
+**5th line**: Update the reservoir, which pseudo code is shown below.
+<p align="center">
+    <img src="/resource/RestirSVGF/image/update_reservoir.png" width="70%" height="70%">
+</p>
+
+Corresponding code:
+```cpp
+bool UpdateReservoir(inout SReservoir reservoir, SSample new_sample, float weight_new, float noise)
+{
+    bool is_sample_changed = false;
+    reservoir.weight_sum += weight_new;
+    reservoir.M += 1.0f;
+
+    if (noise < weight_new / reservoir.weight_sum)
+	{
+		reservoir.m_sample = new_sample;
+		is_sample_changed = true;
+	}
+    return is_sample_changed;
+}
+
+bool MergeReservoirSample(inout SReservoir reservoir_sample, SReservoir new_reservoir_sample, float other_sample_pdf, float noise)
+{
+    float M0 = reservoir_sample.M;
+    bool is_changed = UpdateReservoir(reservoir_sample, new_reservoir_sample.m_sample, other_sample_pdf * new_reservoir_sample.M * new_reservoir_sample.inverse_sir_pdf, noise);
+    reservoir_sample.M = M0 + new_reservoir_sample.M;
+    return is_changed;
+}
+```
+
+The theory behind it is described in the WRS part. In fact, picking a sample from the proposal samples (the first part of the below figure) is the same as the WRS update method (the second part of the below figure) in **temporal**.
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/wrs_ris.png" width="65%" height="65%">
+</p>
+
+#### Result
+
+Reservoir picked sample radiance(before temporal resuing VS after temporal reuse):
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_radiance.png" width="75%" height="75%">
+</p>
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/reservoir_ray_radiance_after_t_resuse.png" width="75%" height="75%">
+</p>
+
+
 ### Spatial Resampling
 
 ## Advanced
