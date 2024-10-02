@@ -3,14 +3,18 @@ title: >-
   [ReSTIR+SVGF-Sim]Spatiotemporal Reservoir Resampling With Spatiotemporal
   Filtering In MiniEngine
 date: 2024-10-01 16:55:05
+index_img: /resource/RestirSVGF/image/denoise_spec.png
 tags:
 ---
 
 # Introduction
-Half Res
-
+We implement a global algorithm combining ReSTIR and spatiotemporal filtering based on Unreal Engine and ReSTIR GI(SiGG 20). At first, we initial the reservoir samples using hardware raytracing at half resolution. Then we perform resampled importance sampling (RIS) to draw samples generated from sample importance resampling (SIR). To reduce time complexity O(M) and space complexity O(M), we use weighted reservoir sampling (WRS) to improve performance. After that, we reuse reservoir samples spatially and generate diffuse/specular lighting based on those samples. Finally, we perform temporal filter and spatial filter (joint bilateral filter) to denoise the indirect lighting results.
 # [ReSTIR]Spatiotemporal Reservoir Resampling
-Half Res
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/ReSTIR_workflow.png" width="80%" height="80%">
+</p>
+
 
 ## Theory
 
@@ -310,7 +314,7 @@ float3 history_world_normal = history_downsampled_world_normal[history_reservoir
             
 bool is_history_nearby = (distance(history_world_position, world_position) < 10.0f) && (abs(dot(history_world_normal,world_normal) > 0.25));
 ```
-The original paper clearly describes what we should do.
+The original paper clearly describes what we should do in the next.
 
 <p align="center">
     <img src="/resource/RestirSVGF/image/temp_reuse.png" width="75%" height="75%">
@@ -372,11 +376,204 @@ Reservoir picked sample radiance(before temporal resuing VS after temporal reuse
 
 ### Spatial Resampling
 
-## Advanced
-### MIS used with RIS
-### Unbias Prof of RIS
+Before talking about the real algorithm used in our implementation, we will describe the unbiased reservoir merge at first, which is not used due to performance costs.
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/unbiased_merge.png" width="65%" height="65%">
+</p>
+
+What we will be discussing is the fourth line. The weight used to combine two reservoirs is not the {% katex %}w_{sum}{% endkatex %} of other reservoirs, since the target PDF may be different from the current PDF.
+
+For example, we use the radiance luminance as the target PDF. If the neighboring pixel's reservoir is not visible, its target PDF is 0. Assume the current pixel's reservoir is visible and merge the neighbor reservoir, It introduces bias.
+
+As described in the above algorithm, for a neighbor reservoir prepared to merge, we use its proposal PDF but replace its target PDF with the current pixel's.
+
+Assume we only consider the sample picked from the neighbor reservoir, which means the number of proposal sample in neighbor reservoir is 1. (M = 1).
+In SIR part, We have proven that the SIR PDF is euqal to proposal PDF when M = 1.
+{% katex %} p_{sir}(x) = \frac{p_{target}(x)}{w(x)} = p_{proposal}(x){% endkatex %}<br><br>
+
+its weight equal to:
+
+{% katex %} w(x_{neighbor}) = \frac{p_{target}(x_{neighbor})}{p_{proposal}(x_{neighbor})}{% endkatex %}<br><br>
+
+Then, replace its target PDF with the current pixel’s.
+
+{% katex %} w(x_{neighbor}) = \frac{p_{target}(x_{current})}{p_{proposal}(x_{neighbor})}{% endkatex %}<br><br>
+{% katex %} = \frac{p_{target}(x_{current})}{p_{sir}(x_{neighbor})}{% endkatex %}<br><br>
+{% katex %} = p_{target}(x_{current}) * inverse\_sir\_pdf{% endkatex %}<br><br>
+
+However, there is still a difference in comparison with the original algorithm, which is M. In [this blog](https://agraphicsguynotes.com/posts/understanding_the_math_behind_restir_di/), the author explains it as a scaling factor. I don't really understand it. You can get more details on that blog if you are interested.  
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/biased_spatial.png" width="65%" height="65%">
+</p>
+
+Above is the real spatial algorithm we used in our implementation. The major difference is that the target PDF is not replaced with the current pixel's target PDF, which induces bias.
+
+There are 3 methods to reduce the bias:
+1.Geometric similarity test(6th line). if similarity is lower than the given threshold, skip it.
+```cpp
+bool is_neighbor_nearby = (distance(neighbor_world_position, world_position) < 10.0f) && (abs(dot(neighbor_world_normal,world_normal) > 0.6));
+```
+2.Sample the shadow map to calculate the visibility term, since the original paper points out that the bias is mainly in shadow areas due to visibility changes. We haven't implemented it.
+<p align="center">
+    <img src="/resource/RestirSVGF/image/visbility.png" width="85%" height="85%">
+</p>
+3.For spatial reservoirs, only operate on temporal reservoirs from nearby pixels and not spatial reservoirs, which is described in the original paper.
+
+Another problems:
+
+>With spatial reuse, it is necessary to account for differences in the source PDF between pixels that are due to the fact that our sampling scheme is based on the visible point’s position and surface normal.(Such a correction was not necessary in the original ReSTIR algorithm since it sampled lights directly without considering each pixel’s local geometry.) Therefore, when we reuse a sample from a pixel q at a pixel r, we must transform its solid angle PDF to current pixel’s solid angle space by dividing it by the Jacobian determinant of the corresponding transformation
+
+```cpp
+float CalculateJacobian(float3 world_position, float3 neighbor_world_position, SReservoir reservoir_sample)
+{
+    float3 neighbor_hit_position = neighbor_world_position + reservoir_sample.m_sample.hit_distance * reservoir_sample.m_sample.ray_direction;
+
+    float3 neighbor_receiver_to_sample = neighbor_world_position - neighbor_hit_position;
+    float original_distance = length(neighbor_receiver_to_sample);
+    float original_cos_angle = saturate(dot(reservoir_sample.m_sample.hit_normal,neighbor_receiver_to_sample / original_distance));
+
+    float3 new_receiver_to_sample = world_position - neighbor_hit_position;
+    float new_distance = length(new_receiver_to_sample);
+    float new_cos_angle = saturate(dot(reservoir_sample.m_sample.hit_normal,new_receiver_to_sample / new_distance));
+
+    float jacobian = (new_cos_angle * original_distance * original_distance) / (original_cos_angle * new_distance * new_distance);
+
+	if (isinf(jacobian) || isnan(jacobian)) { jacobian = 0; }
+	if (abs(dot(reservoir_sample.m_sample.hit_normal, 1.0f)) < .01f) { jacobian = 1.0f; }
+	if (jacobian > 10.0f || jacobian < 1 / 10.0f) { jacobian = 0; }
+	return jacobian;
+}
+```
+Reservoir picked sample radiance(before spatial resuing VS after spatial reuse):
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/before_sp_reused.png" width="65%" height="65%">
+</p>
+<p align="center">
+    <img src="/resource/RestirSVGF/image/after_sp_reused.png" width="65%" height="65%">
+</p>
+
+### Upsample And Integrate
+
+Below is the workflow of the ppsample and integrate pass:
+1.Generate random upsalce samples using a spiral pattern.
+```cpp
+for(uint sample_index; sample_index < upscale_number_sample; sample_index++)
+{
+    const float angle = (sample_index + noise) * 2.3999632f;
+    const float radius = pow(float(sample_index), 0.666f) * kernel_scale;
+
+    const int2 reservoir_pixel_offset = int2(floor(float2(cos(angle), sin(angle)) * radius));
+    uint2 reservior_sample_coord = clamp((current_pixel_pos / 2 + reservoir_pixel_offset) , uint2(0,0), int2(g_restir_texturesize) - int2(1,1));
+
+    ......
+}
+```
+2.Compute the diffuse light and specular light for current pixel.
+```cpp
+// diffuse lighting
+float3 sample_light = reservoir_sample.m_sample.radiance * reservoir_sample.inverse_sir_pdf;
+weighted_diffuse_lighting += sample_light * depth_weight * max(dot(world_normal, reservoir_sample.m_sample.ray_direction),0.0f);
+
+// specular lighting
+float3 H = normalize(view_direction + reservoir_sample.m_sample.ray_direction);
+float NoH = saturate(dot(world_normal, H));
+float D = D_GGX(0.8 * 0.8 ,NoH);
+const float Vis_Implicit = 0.25;
+weighted_specular_lighting += ToneMappingLighting(sample_light * D * Vis_Implicit) * depth_weight;
+
+// weight
+total_weight += depth_weight;
+```
+
+Diffuse Indirect Lighting(Scaled) and Specular Indirect Lighting(Scaled)
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/diff_indirect.png" width="65%" height="65%">
+</p>
+<p align="center">
+    <img src="/resource/RestirSVGF/image/spec_indirect.png" width="65%" height="65%">
+</p>
+
 
 # Spatiotemporal Filtering
-If you want to dive deeper into SVGF, you can read my Chinese blog.
-## Theory
-## Implementation Detail
+Following ReSTIR, we apply spatiotemporal filtering based on the UnrealEngine, which is similar to SVGF. If you want to dive deeper into SVGF, you can read my [Chinese blog](https://blog.csdn.net/u010669231/article/details/117885871) related to it.
+
+## Temporal Filtering
+
+Temporal filtering is simple. Reproject the sample into the previous frame and lerp between two frames. And we should perform a similarity test which is similar to TAA.
+
+```cpp
+float4 pre_view_pos = mul(PreViewProjMatrix,float4(world_position, 1.0));
+float2 pre_view_screen_pos = (float2(pre_view_pos.xy / pre_view_pos.w) * 0.5 + float2(0.5,0.5));
+pre_view_screen_pos.y = (1.0 - pre_view_screen_pos.y);
+
+float2 histUV = pre_view_screen_pos;
+float3 hist_diffuse = hist_diffuse_indirect.SampleLevel(defaultLinearSampler, histUV,0).xyz;
+float3 hist_specular = hist_specular_indirect.SampleLevel(defaultLinearSampler, histUV,0).xyz;
+
+float3 current_diffuse = output_diffuse_indirect[current_pixel_pos].xyz;
+float3 current_specular = output_specular_indirect[current_pixel_pos].xyz;
+
+//todo: temporal sample validation
+output_diffuse_indirect[current_pixel_pos] = float4(lerp(hist_diffuse, current_diffuse, 0.05f),1.0);
+output_specular_indirect[current_pixel_pos] = float4(lerp(hist_specular, current_specular, 0.05f),1.0);
+```
+
+## Spatial Filtering
+
+In the spatial filter pass, we apply a joint bilateral filter pass to the result from the temporal filter pass. I would not detail it. If you are interested in it, my blog(GI Baking With Ray Guiding) decribes some denoise method including joint bilateral filter.  
+
+```cpp
+for(uint sample_index = 0; sample_index < biliteral_sample_num; sample_index++)
+ {
+     float2 offset = (Hammersley16(sample_index, biliteral_sample_num, random_seed) - 0.5f) * 2.0f * kernel_radius;
+     int2 neighbor_position = current_pixel_pos + offset;
+     if(all(neighbor_position < g_full_screen_texsize) && all(neighbor_position >= int2(0,0)))
+     {
+         float3 neighbor_world_position = gbuffer_world_pos[neighbor_position].xyz;
+         if(any(neighbor_world_position != float3(0,0,0)))
+         {
+             float plane_distance = abs(dot(float4(neighbor_world_position, -1.0), current_sample_scene_plane));
+             float relative_difference = plane_distance / sample_camera_distance;
+             
+             float depth_weight = exp2(-10000.0f * (relative_difference * relative_difference));
+             
+             float spatial_weight = exp2(-guassian_normalize* dot(offset, offset));
+
+             float3 neighbor_normal = gbuffer_world_normal[neighbor_position].xyz;
+             float angle_between_normal = acosFast(saturate(dot(world_normal, neighbor_normal)));
+             float normal_weight = 1.0 - saturate(angle_between_normal * angle_between_normal);
+
+             float sample_weight = spatial_weight * depth_weight * normal_weight;
+             filtered_diffuse_indirect += ToneMappingLighting(input_diffuse_indirect[neighbor_position].xyz) * sample_weight;
+             filtered_specular_indirect += ToneMappingLighting(input_specular_indirect[neighbor_position].xyz) * sample_weight;
+             total_weight += sample_weight;
+         }
+     }
+ }
+```
+Denoised Diffuse Indirect Lighting(Scaled) and Denoised Specular Indirect Lighting(Scaled)
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/denoise_diff.png" width="65%" height="65%">
+</p>
+<p align="center">
+    <img src="/resource/RestirSVGF/image/denoise_spec.png" width="65%" height="65%">
+</p>
+
+# Result
+Finally, combine the indirect lighting with the direct lighting.
+```cpp
+float3 simple_combine_indirect_light =  diffuse_indirect_color * diffuse * (1.0 / 3.1415926535) + sepcular_indirect_color * specular;
+```
+Enable ReSTIR VS Disable ReSTIR(Direct Lighting Only)
+
+<p align="center">
+    <img src="/resource/RestirSVGF/image/final_result.png" width="90%" height="90%">
+</p>
+<p align="center">
+    <img src="/resource/RestirSVGF/image/direct_lighting_only.png" width="90%" height="90%">
+</p>
