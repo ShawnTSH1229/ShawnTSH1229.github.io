@@ -8,7 +8,7 @@ tags:
 ---
 
 # Introduction
-We implement a global algorithm combining ReSTIR and spatiotemporal filtering based on Unreal Engine and ReSTIR GI(SiGG 20). At first, we initial the reservoir samples using hardware raytracing at half resolution. Then we perform resampled importance sampling (RIS) to draw samples generated from sample importance resampling (SIR). To reduce time complexity O(M) and space complexity O(M), we use weighted reservoir sampling (WRS) to improve performance. After that, we reuse reservoir samples spatially and generate diffuse/specular lighting based on those samples. Finally, we perform temporal filter and spatial filter (joint bilateral filter) to denoise the indirect lighting results.
+We implement a GI algorithm combining ReSTIR and spatiotemporal filtering based on Unreal Engine and ReSTIR GI(SiGG 20). At first, we initial the reservoir samples using hardware raytracing at half resolution. Then we perform resampled importance sampling (RIS) to draw samples generated from sample importance resampling (SIR). To reduce time complexity O(M) and space complexity O(M), we use weighted reservoir sampling (WRS) to improve performance. After that, we reuse reservoir samples spatially and generate diffuse/specular lighting based on those samples. Finally, we perform temporal filter and spatial filter (joint bilateral filter) to denoise the indirect lighting results.
 # [ReSTIR]Spatiotemporal Reservoir Resampling
 
 <p align="center">
