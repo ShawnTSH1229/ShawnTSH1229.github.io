@@ -1,6 +1,7 @@
 ---
 title: Stochastic Progressive Photon Mapping In Alpha7XRenderer
 date: 2024-10-06 16:39:58
+index_img: /resource/sppm/image/result.png
 tags:
 ---
 
