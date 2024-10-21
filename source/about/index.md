@@ -51,6 +51,7 @@ Alpha7X SPPM
 
 Some Posts:
 Volume Rendering
+BDPT
 
 ### Graphics Driver & RHI
 Modern Graphcs API(DX12) Abstraction
