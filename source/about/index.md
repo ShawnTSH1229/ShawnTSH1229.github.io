@@ -32,6 +32,8 @@ ReSTIR In MiniEngine
 Bindless Vulkan RayTracing In CryEngine
 Screen Space Photon Mapping Using Faclor 
 
+Optix:
+
 ### Visual Effects
 Sky Atmosphere In XEngine
 TAA
