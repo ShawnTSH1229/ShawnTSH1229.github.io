@@ -88,4 +88,7 @@ todo: smooth, morph, deformation and so on
 
 todo: Wind Simulation
 
+### Some Posts
+Deep Learning & Computational Gometry & Differential Geometry
+
 --------------------------------
