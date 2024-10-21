@@ -39,9 +39,7 @@ Optix:
 
 ### Visual Effects
 Sky Atmosphere In XEngine
-TAA
-TSR
-FSR
+TAA TSR FSR
 
 Some Posts:
 Skin Rendering
