@@ -5,10 +5,11 @@ date: 2024-05-01 18:52:12
 ---
 
 ## Education
-
+2018 - 2022
 ## Cources
 
 ## Industrial Experience
+2022 - now
 todo:
 
 ## Engine Experience:
